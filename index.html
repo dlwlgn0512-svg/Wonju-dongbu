@@ -8,6 +8,8 @@
   <!-- 파이어베이스 라이브러리 -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+  <!-- 고화질 이미지 캡처 라이브러리 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
     :root {
@@ -53,6 +55,8 @@
     .btn-outline:hover { background-color: #f1f5f9; }
     .btn-print { background-color: #0f172a; color: #fff; }
     .btn-print:hover { background-color: #334155; }
+    .btn-image { background-color: #7c3aed; color: #fff; }
+    .btn-image:hover { background-color: #6d28d9; }
     .btn-danger { background-color: #fee2e2; color: #b91c1c; border-color: #fecaca; }
     .btn-danger:hover { background-color: #fca5a5; }
 
@@ -212,6 +216,7 @@
       <p style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">사랑 · 기쁨 · 친절 · 선함 · 믿음 · 온화 집단 명단 및 청소 배정 관리</p>
     </div>
     <div class="header-actions no-print">
+      <button type="button" class="btn-image" onclick="generatePlanImage()">🖼️ 사진(이미지) 저장</button>
       <button type="button" class="btn-print" onclick="window.print()">🖨️ A4 1장 인쇄 / PDF 저장</button>
       <button type="button" class="btn-outline" onclick="exportDataJSON()">💾 백업</button>
       <button type="button" class="btn-outline" onclick="resetToInitialDefaults()">🔄 기본값 복원</button>
@@ -280,20 +285,50 @@
   </div>
 
   <!-- ========================================================
-       ★ 인쇄 전용 영역: 원본 엑셀 서식 그대로 1장 출력 ★
+       ★ 인쇄 및 이미지 생성 전용 오프스크린 템플릿 ★
        ======================================================== -->
+  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1200px; background: #ffffff; padding: 20px;" class="print-only-layout">
+    <div style="text-align: center; font-size: 1.35rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px; color: #000;">회중 집단 및 주간 봉사 계획표</div>
+    <div style="text-align: right; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; color: #444;">기울임: 정규 파이오니아</div>
+    
+    <!-- 캡처/인쇄용 1. 집단 성원 표 -->
+    <table id="printGroupTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+
+    <!-- 캡처/인쇄용 2. 봉사 및 인도자 표 -->
+    <table id="printServiceTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+
+    <!-- 캡처/인쇄용 3. 회중 임명 표 -->
+    <table id="printDutyTable" style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+  </div>
+
+  <!-- A4 브라우저 인쇄 전용 영역 -->
   <div class="print-only">
     <div class="print-header-banner">회중 집단 및 주간 봉사 계획표</div>
     <div class="pioneer-note">기울임: 정규 파이오니아</div>
-    
-    <!-- 인쇄용 집단 명단 테이블 -->
-    <table id="printGroupTable" style="margin-bottom: 4px;"></table>
+    <div id="printContainerDirect"></div>
+  </div>
+</div>
 
-    <!-- 인쇄용 봉사 및 인도자 테이블 -->
-    <table id="printServiceTable" style="margin-bottom: 4px;"></table>
-
-    <!-- 인쇄용 회중 임명 테이블 -->
-    <table id="printDutyTable"></table>
+<!-- 모달: 사진 미리보기 및 저장 안내 -->
+<div class="modal-backdrop" id="imagePreviewModal">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <h3 style="font-size: 1rem; font-weight: 700;">🖼️ 집단 편성표 이미지 저장</h3>
+      <button type="button" style="border:none; background:none; font-size:1.2rem; cursor:pointer;" onclick="closeModal('imagePreviewModal')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align: center;">
+      <p style="font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-bottom: 8px;">
+        💡 모바일에서는 이미지를 <b>1~2초간 꾹 눌러 '사진 앱에 저장'</b>하세요.
+      </p>
+      <div style="max-height: 55vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; padding: 4px;">
+        <img id="previewModalImg" src="" alt="집단 편성표" style="width: 100%; height: auto; border-radius: 4px; display: block;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-primary" id="btnNativeShare" onclick="shareCapturedImage()" style="display:none;">📲 공유 / 사진 저장</button>
+      <button type="button" class="btn-outline" onclick="downloadImageDirectly()">⬇️ 파일 다운로드</button>
+      <button type="button" class="btn-outline" onclick="closeModal('imagePreviewModal')">닫기</button>
+    </div>
   </div>
 </div>
 
@@ -385,7 +420,6 @@
   const db = firebase.firestore();
   const CONG_DOC = db.collection("sarangGroup").doc("congregationServicePlan");
 
-  // 집단 이름 및 청소월, 운영위원 수정 기본 데이터
   const DEFAULT_DATA = {
     groups: [
       {
@@ -538,21 +572,20 @@
   };
 
   let appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  let currentGeneratedBlob = null;
+  let currentGeneratedFilename = "";
 
-  // Firebase 실시간 동기화
   CONG_DOC.onSnapshot((docSnap) => {
     const syncStatusEl = document.getElementById("syncStatus");
     if (docSnap.exists) {
       const data = docSnap.data();
       if (data && data.groups) {
-        // 기존 데이터에 새 집단명과 청소월 병합
         data.groups.forEach((g, idx) => {
           if (DEFAULT_DATA.groups[idx]) {
             g.name = DEFAULT_DATA.groups[idx].name;
             g.cleanMonths = DEFAULT_DATA.groups[idx].cleanMonths;
           }
         });
-        // 운영위원 엄태현 제거 보정
         if (data.duties && data.duties[4]) {
           data.duties[4].names2 = ["이상목"];
         }
@@ -587,7 +620,6 @@
     renderPrintViews();
   }
 
-  // 1. 집단 성원 명단 (헤더에 집단명 + 청소 담당 월 배지 표기)
   function renderGroupGrid() {
     const container = document.getElementById("groupGridContainer");
     if (!container) return;
@@ -639,7 +671,6 @@
     });
   }
 
-  // 2. 주간 봉사 계획표
   function renderServicePlan() {
     const tbody = document.getElementById("servicePlanBody");
     if (!tbody) return;
@@ -685,7 +716,6 @@
     tbody.appendChild(trType);
   }
 
-  // 3. 회중 임명표
   function renderDuties() {
     const tbody = document.getElementById("dutyBody");
     if (!tbody) return;
@@ -707,7 +737,6 @@
     });
   }
 
-  // 4. 인쇄 전용 테이블
   function renderPrintViews() {
     const pGroup = document.getElementById("printGroupTable");
     if (pGroup) {
@@ -801,6 +830,86 @@
       html += `</tbody>`;
       pDuty.innerHTML = html;
     }
+
+    // 브라우저 직접 인쇄 컨테이너 복제
+    const printDirect = document.getElementById("printContainerDirect");
+    const template = document.getElementById("imageCaptureTemplate");
+    if (printDirect && template) {
+      printDirect.innerHTML = template.innerHTML;
+    }
+  }
+
+  // ★ 집단 편성표 고화질 사진(이미지) 생성 & 저장 함수
+  function generatePlanImage() {
+    const template = document.getElementById("imageCaptureTemplate");
+    if (!template) return;
+
+    renderPrintViews();
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    currentGeneratedFilename = `회중_집단편성표_${todayStr}.png`;
+
+    // html2canvas로 3배율 고해상도 캡처
+    html2canvas(template, {
+      scale: 2.5,
+      backgroundColor: "#ffffff",
+      useCORS: true
+    }).then(canvas => {
+      canvas.toBlob(blob => {
+        currentGeneratedBlob = blob;
+        const dataUrl = canvas.toDataURL("image/png");
+
+        // 모바일 네이티브 공유 API 지원 시 바로 공유 창 띄우기
+        const file = new File([blob], currentGeneratedFilename, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          document.getElementById("btnNativeShare").style.display = "inline-flex";
+          navigator.share({
+            files: [file],
+            title: `회중 집단 및 주간 봉사 계획표 (${todayStr})`
+          }).catch(() => {
+            // 사용자가 취소하거나 실패 시 미리보기 모달 표시
+            openImagePreviewModal(dataUrl);
+          });
+        } else {
+          document.getElementById("btnNativeShare").style.display = "none";
+          openImagePreviewModal(dataUrl);
+          // PC 환경에서는 바로 파일 다운로드 트리거
+          downloadImageDirectly();
+        }
+      }, "image/png");
+    }).catch(err => {
+      console.error("이미지 생성 오류:", err);
+      alert("이미지 생성 중 오류가 발생했습니다.");
+    });
+  }
+
+  function openImagePreviewModal(dataUrl) {
+    document.getElementById("previewModalImg").src = dataUrl;
+    document.getElementById("imagePreviewModal").classList.add("show");
+  }
+
+  function downloadImageDirectly() {
+    if (!currentGeneratedBlob) return;
+    const url = URL.createObjectURL(currentGeneratedBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = currentGeneratedFilename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function shareCapturedImage() {
+    if (currentGeneratedBlob && navigator.share) {
+      const file = new File([currentGeneratedBlob], currentGeneratedFilename, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: currentGeneratedFilename
+        }).catch(() => {});
+        return;
+      }
+    }
+    alert("이미지를 1~2초간 꾹 눌러 '사진 앱에 저장'을 선택해 주세요!");
   }
 
   // --- 성원 추가/수정 모달 ---
@@ -882,7 +991,6 @@
 
   async function editDayLeader(dayKey, slotIdx) {
     const curName = (appData.servicePlan.days[dayKey].leaders && appData.servicePlan.days[dayKey].leaders[slotIdx]) || "";
-    const isCart = (appData.servicePlan.days[dayKey].isCart && appData.servicePlan.days[dayKey].isCart[slotIdx]) || false;
 
     const newName = prompt(`인도자 성명을 입력하세요 (비우면 공란):`, curName);
     if (newName === null) return;
