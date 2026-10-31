@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>회중 집단 및 봉사 계획 관리 시스템</title>
+  
+  <!-- 파이어베이스 라이브러리 -->
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #cbd5e1;
+      --success: #10b981;
+      --danger: #ef4444;
+      /* 원본 표 전용 녹색/연두색 & 하늘색 테마 */
+      --green-light: #c8e6c9;
+      --green-highlight: #bbf7d0;
+      --blue-header: #e0f2fe;
+      --blue-header-dark: #0369a1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; word-break: keep-all; }
+    body { background-color: var(--bg); color: var(--text); line-height: 1.4; padding: 12px; }
+    .container { max-width: 1300px; margin: 0 auto; position: relative; }
+
+    header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+    @media (min-width: 768px) {
+      body { padding: 20px; }
+      header { flex-direction: row; justify-content: space-between; align-items: center; }
+    }
+
+    h1 { font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .sync-status { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 3px 8px; border-radius: 9999px; background: #e2e8f0; color: #475569; }
+    .sync-status.online { background: #dcfce7; color: #15803d; }
+    .sync-status.error { background: #fee2e2; color: #b91c1c; }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+    .sync-status.online .sync-dot { background: var(--success); }
+    .sync-status.error .sync-dot { background: var(--danger); }
+
+    button { cursor: pointer; padding: 7px 12px; border-radius: 6px; border: 1px solid transparent; font-weight: 600; font-size: 0.82rem; transition: 0.15s ease-in-out; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+    .btn-primary { background-color: var(--primary); color: #fff; }
+    .btn-primary:hover { background-color: var(--primary-dark); }
+    .btn-outline { background-color: #fff; border-color: var(--border); color: var(--text); }
+    .btn-outline:hover { background-color: #f1f5f9; }
+    .btn-print { background-color: #0f172a; color: #fff; }
+    .btn-print:hover { background-color: #334155; }
+    .btn-danger { background-color: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    .btn-danger:hover { background-color: #fca5a5; }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 16px 0 8px 0;
+      padding-bottom: 4px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+
+    /* 1. 집단 성원 그리드 & 테이블 스타일 */
+    .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .group-col { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .group-header {
+      background: #f1f5f9;
+      padding: 8px 10px;
+      font-weight: 700;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+    }
+    .member-list { padding: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 480px; overflow-y: auto; }
+    .member-item {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      background: #fff;
+    }
+    .member-item.supervisor { background: #eff6ff; font-weight: 700; border-color: #bfdbfe; }
+    .member-item.assistant { background: #f0fdf4; font-weight: 600; border-color: #bbf7d0; }
+    .member-item.child { color: #64748b; font-size: 0.78rem; background: #fafafa; }
+    .member-item.interested { color: #d97706; font-size: 0.78rem; background: #fffbeb; }
+    .pioneer { font-style: italic; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+
+    /* 공통 테이블 스타일 */
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; table-layout: fixed; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: center; vertical-align: middle; }
+    th { font-weight: 700; background-color: #f1f5f9; }
+    .bg-green-light { background-color: var(--green-light) !important; font-weight: 700; }
+    .bg-green-highlight { background-color: var(--green-highlight) !important; font-weight: 700; }
+    .bg-blue-header { background-color: var(--blue-header) !important; color: var(--blue-header-dark); font-weight: 800; font-size: 0.95rem; }
+
+    /* 팝업 모달 */
+    .modal-backdrop { 
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; pointer-events: none;
+    }
+    .modal-backdrop.show { display: flex !important; pointer-events: auto !important; }
+    .modal { background: #fff; width: 94%; max-width: 500px; max-height: 85vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    .modal-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 14px 16px; overflow-y: auto; }
+    .modal-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+    input, select { padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.86rem; outline: none; width: 100%; }
+
+    /* =========================================================
+       ★ [A4 가로 1장 인쇄 최적화 - 원본 엑셀 서식 재현] ★
+       ========================================================= */
+    .print-only { display: none; }
+
+    @media print {
+      @page { 
+        size: A4 landscape; 
+        margin: 5mm 6mm; 
+      }
+      html, body { 
+        background: #fff !important; 
+        padding: 0 !important; 
+        margin: 0 !important; 
+        color: #000 !important;
+        font-size: 7.2pt !important;
+        line-height: 1.15 !important;
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+      }
+
+      header, .no-print, button, .group-grid, .modal-backdrop { 
+        display: none !important; 
+      }
+
+      .print-only { display: block !important; }
+      .container { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
+      .card { border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+
+      table { 
+        border-collapse: collapse !important; 
+        border: 1.5px solid #000 !important; 
+        width: 100% !important; 
+        table-layout: fixed !important;
+        page-break-inside: avoid !important;
+      }
+      th, td { 
+        border: 1px solid #444 !important; 
+        padding: 2.2px 3px !important; 
+        color: #000 !important; 
+        font-size: 7.2pt !important;
+      }
+      .print-header-banner {
+        text-align: center;
+        font-size: 1.15rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+        letter-spacing: 2px;
+      }
+      .pioneer-note {
+        text-align: right;
+        font-size: 6.8pt;
+        font-weight: bold;
+        margin: 2px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>
+        회중 집단 및 봉사 계획 관리 시스템
+        <span class="sync-status" id="syncStatus"><span class="sync-dot"></span>클라우드 연결 중...</span>
+      </h1>
+      <p style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">1~6집단 성원 관리 · 주간 봉사 및 인도자 계획표 · 회중 임명표 (love-d0dcf)</p>
+    </div>
+    <div class="header-actions no-print">
+      <button type="button" class="btn-print" onclick="window.print()">🖨️ A4 1장 인쇄 / PDF 저장</button>
+      <button type="button" class="btn-outline" onclick="exportDataJSON()">💾 백업</button>
+      <button type="button" class="btn-outline" onclick="resetToInitialImageDefaults()">🔄 기본값 복원</button>
+    </div>
+  </header>
+
+  <!-- ==========================================
+       1. 집단 성원 명단 (1집단 ~ 6집단)
+       ========================================== -->
+  <div class="section-title no-print">
+    <span>👥 집단 성원 명단 (기울임: 정규 파이오니아)</span>
+  </div>
+
+  <div class="group-grid no-print" id="groupGridContainer">
+    <!-- JS로 1~6집단 렌더링 -->
+  </div>
+
+  <!-- ==========================================
+       2. 주간 봉사 및 인도자 계획표
+       ========================================== -->
+  <div class="section-title no-print">
+    <span>🚗 봉사 및 인도자 계획표</span>
+    <span style="font-size:0.75rem; color:#15803d; font-weight:600;">※ 전시대 봉사는 연두색으로 자동 하이라이트됩니다.</span>
+  </div>
+
+  <div class="card no-print" style="overflow-x:auto;">
+    <div style="background:var(--blue-header); color:var(--blue-header-dark); font-weight:800; text-align:center; padding:6px; border:1px solid var(--border); border-bottom:none;">
+      봉사 및 인도자
+    </div>
+    <table id="servicePlanTable">
+      <thead>
+        <tr>
+          <th style="width: 12%;">요 일</th>
+          <th style="width: 12%;">월요일</th>
+          <th style="width: 12%;">화요일</th>
+          <th style="width: 12%;">수요일</th>
+          <th style="width: 13%;">목요일</th>
+          <th style="width: 13%;">금요일</th>
+          <th style="width: 13%;">토요일</th>
+          <th style="width: 13%;">일요일</th>
+        </tr>
+      </thead>
+      <tbody id="servicePlanBody">
+        <!-- JS 렌더링 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==========================================
+       3. 회중 임명표
+       ========================================== -->
+  <div class="section-title no-print">
+    <span>🏛️ 회중 임명표</span>
+    <button type="button" class="btn-outline" style="padding:3px 8px; font-size:0.75rem;" onclick="openDutyEditModal()">✏️ 임명자 일괄 수정</button>
+  </div>
+
+  <div class="card no-print" style="overflow-x:auto;">
+    <div style="background:var(--blue-header); color:var(--blue-header-dark); font-weight:800; text-align:center; padding:6px; border:1px solid var(--border); border-bottom:none;">
+      회중 임명
+    </div>
+    <table id="dutyTable">
+      <tbody id="dutyBody">
+        <!-- JS 렌더링 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========================================================
+       ★ 인쇄 전용 영역: 원본 엑셀 서식 그대로 1장 출력 ★
+       ======================================================== -->
+  <div class="print-only">
+    <div class="print-header-banner">회중 집단 및 주간 봉사 계획표</div>
+    <div class="pioneer-note">기울임: 정규 파이오니아</div>
+    
+    <!-- 인쇄용 1~6집단 명단 테이블 -->
+    <table id="printGroupTable" style="margin-bottom: 4px;">
+      <!-- JS 렌더링 -->
+    </table>
+
+    <!-- 인쇄용 봉사 및 인도자 테이블 -->
+    <table id="printServiceTable" style="margin-bottom: 4px;">
+      <!-- JS 렌더링 -->
+    </table>
+
+    <!-- 인쇄용 회중 임명 테이블 -->
+    <table id="printDutyTable">
+      <!-- JS 렌더링 -->
+    </table>
+  </div>
+</div>
+
+<!-- 모달: 성원 추가/수정 -->
+<div class="modal-backdrop" id="memberModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="memberModalTitle" style="font-size:1rem;">성원 관리</h3>
+      <button type="button" style="border:none; background:none; font-size:1.2rem; cursor:pointer;" onclick="closeModal('memberModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="memberForm" onsubmit="saveMember(event)">
+        <input type="hidden" id="modalGroupIdx" value="0">
+        <input type="hidden" id="modalMemberId" value="">
+        
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:3px;">소속 집단</label>
+          <select id="modalGroupSelect" style="width:100%;" disabled>
+            <option value="0">1집단</option>
+            <option value="1">2집단</option>
+            <option value="2">3집단</option>
+            <option value="3">4집단</option>
+            <option value="4">5집단</option>
+            <option value="5">6집단</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:3px;">성명 *</label>
+          <input type="text" id="modalMemberName" required placeholder="성원 이름 입력">
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:3px;">구분 / 역할</label>
+          <select id="modalMemberRole">
+            <option value="성원">일반 성원</option>
+            <option value="감독자">감독자</option>
+            <option value="보조자">보조자</option>
+            <option value="자녀">자녀</option>
+            <option value="관심자">관심자</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:14px; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid var(--border);">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="modalIsPioneer" style="width:16px; height:16px;">
+            <span style="font-size:0.84rem; font-weight:700; color:#1e293b;">정규 파이오니아 (기울임 표기)</span>
+          </label>
+        </div>
+
+        <div class="modal-footer" style="padding-right:0; padding-bottom:0;">
+          <button type="button" class="btn-outline" onclick="closeModal('memberModal')">취소</button>
+          <button type="submit" class="btn-primary">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 모달: 회중 임명표 전체 편집 -->
+<div class="modal-backdrop" id="dutyModal">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <h3 style="font-size:1rem;">회중 임명자 수정</h3>
+      <button type="button" style="border:none; background:none; font-size:1.2rem; cursor:pointer;" onclick="closeModal('dutyModal')">✕</button>
+    </div>
+    <div class="modal-body" id="dutyModalInputs">
+      <!-- 동적 생성 -->
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-outline" onclick="closeModal('dutyModal')">취소</button>
+      <button type="button" class="btn-primary" onclick="saveDutiesFromModal()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Firebase 초기화 (love-d0dcf 프로젝트 연동)
+  const firebaseConfig = {
+    apiKey: "AIzaSyCdZlSMTeiZvmN_qn4Yqva06NE_NR7QB7I",
+    authDomain: "love-d0dcf.firebaseapp.com",
+    projectId: "love-d0dcf",
+    storageBucket: "love-d0dcf.firebasestorage.app",
+    messagingSenderId: "1040684162668",
+    appId: "1:1040684162668:web:a2b09db58fa6309e430249"
+  };
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.firestore();
+  const CONG_DOC = db.collection("sarangGroup").doc("congregationServicePlan");
+
+  // 이미지에 나온 초기 원본 데이터 세팅
+  const DEFAULT_DATA = {
+    groups: [
+      {
+        name: "1집단",
+        members: [
+          { id: "m1", name: "강덕수", role: "감독자", isPioneer: false },
+          { id: "m2", name: "원보빈", role: "보조자", isPioneer: false },
+          { id: "m3", name: "한현정", role: "성원", isPioneer: false },
+          { id: "m4", name: "원대수", role: "성원", isPioneer: false },
+          { id: "m5", name: "김미란", role: "성원", isPioneer: false },
+          { id: "m6", name: "임봉순", role: "성원", isPioneer: false },
+          { id: "m7", name: "박미경", role: "성원", isPioneer: false },
+          { id: "m8", name: "김명숙", role: "성원", isPioneer: false },
+          { id: "m9", name: "김효영", role: "성원", isPioneer: false },
+          { id: "m10", name: "김유진", role: "성원", isPioneer: false },
+          { id: "m11", name: "김수진", role: "성원", isPioneer: false },
+          { id: "m12", name: "조환희", role: "성원", isPioneer: false },
+          { id: "m13", name: "백승혁", role: "성원", isPioneer: false },
+          { id: "m14", name: "서정덕", role: "성원", isPioneer: false },
+          { id: "m15", name: "문분애", role: "성원", isPioneer: false },
+          { id: "m16", name: "김서진", role: "자녀", isPioneer: false }
+        ]
+      },
+      {
+        name: "2집단",
+        members: [
+          { id: "m21", name: "이순근", role: "감독자", isPioneer: false },
+          { id: "m22", name: "이시형", role: "보조자", isPioneer: false },
+          { id: "m23", name: "이윤정", role: "성원", isPioneer: false },
+          { id: "m24", name: "이희승", role: "성원", isPioneer: false },
+          { id: "m25", name: "양인선", role: "성원", isPioneer: false },
+          { id: "m26", name: "이효원", role: "성원", isPioneer: false },
+          { id: "m27", name: "김옥화", role: "성원", isPioneer: false },
+          { id: "m28", name: "이규현", role: "성원", isPioneer: false },
+          { id: "m29", name: "이한직", role: "성원", isPioneer: false },
+          { id: "m30", name: "이윤경", role: "성원", isPioneer: false },
+          { id: "m31", name: "이구의", role: "성원", isPioneer: false },
+          { id: "m32", name: "정재숙", role: "성원", isPioneer: false },
+          { id: "m33", name: "정혜영", role: "성원", isPioneer: false }
+        ]
+      },
+      {
+        name: "3집단",
+        members: [
+          { id: "m41", name: "이상목", role: "감독자", isPioneer: false },
+          { id: "m42", name: "이준형", role: "보조자", isPioneer: false },
+          { id: "m43", name: "송효은", role: "성원", isPioneer: false },
+          { id: "m44", name: "이수현", role: "성원", isPioneer: false },
+          { id: "m45", name: "이서현", role: "성원", isPioneer: false },
+          { id: "m46", name: "송경헌", role: "성원", isPioneer: false },
+          { id: "m47", name: "김종성", role: "성원", isPioneer: false },
+          { id: "m48", name: "이승희", role: "성원", isPioneer: false },
+          { id: "m49", name: "김정숙", role: "성원", isPioneer: false },
+          { id: "m50", name: "안 순", role: "성원", isPioneer: false },
+          { id: "m51", name: "박광우", role: "성원", isPioneer: false },
+          { id: "m52", name: "진예진", role: "성원", isPioneer: false },
+          { id: "m53", name: "박진슬", role: "성원", isPioneer: false },
+          { id: "m54", name: "김순덕", role: "성원", isPioneer: false },
+          { id: "m55", name: "조은빛", role: "성원", isPioneer: false },
+          { id: "m56", name: "정시우", role: "자녀", isPioneer: false }
+        ]
+      },
+      {
+        name: "4집단",
+        members: [
+          { id: "m61", name: "박승일", role: "감독자", isPioneer: false },
+          { id: "m62", name: "오성진", role: "보조자", isPioneer: false },
+          { id: "m63", name: "노은영", role: "성원", isPioneer: false },
+          { id: "m64", name: "박하율", role: "성원", isPioneer: false },
+          { id: "m65", name: "장인자", role: "성원", isPioneer: false },
+          { id: "m66", name: "이재림", role: "성원", isPioneer: false },
+          { id: "m67", name: "이채원", role: "성원", isPioneer: false },
+          { id: "m68", name: "김혜경", role: "성원", isPioneer: false },
+          { id: "m69", name: "최지은", role: "성원", isPioneer: false },
+          { id: "m70", name: "김선춘", role: "성원", isPioneer: false },
+          { id: "m71", name: "김항인", role: "성원", isPioneer: false },
+          { id: "m72", name: "조은려", role: "성원", isPioneer: false },
+          { id: "m73", name: "김관호", role: "성원", isPioneer: false },
+          { id: "m74", name: "유수희", role: "성원", isPioneer: false },
+          { id: "m75", name: "조민지", role: "성원", isPioneer: false },
+          { id: "m76", name: "오하윤", role: "자녀", isPioneer: false }
+        ]
+      },
+      {
+        name: "5집단",
+        members: [
+          { id: "m81", name: "오세길", role: "감독자", isPioneer: false },
+          { id: "m82", name: "엄태현", role: "보조자", isPioneer: false },
+          { id: "m83", name: "문덕경", role: "성원", isPioneer: false },
+          { id: "m84", name: "이인희", role: "성원", isPioneer: false },
+          { id: "m85", name: "성난숙", role: "성원", isPioneer: false },
+          { id: "m86", name: "박부용", role: "성원", isPioneer: false },
+          { id: "m87", name: "박수경", role: "성원", isPioneer: false },
+          { id: "m88", name: "김애숙", role: "성원", isPioneer: false },
+          { id: "m89", name: "김영호", role: "성원", isPioneer: false },
+          { id: "m90", name: "박순옥", role: "성원", isPioneer: false },
+          { id: "m91", name: "박유진", role: "성원", isPioneer: false },
+          { id: "m92", name: "박정의", role: "성원", isPioneer: false },
+          { id: "m93", name: "하영원", role: "성원", isPioneer: false },
+          { id: "m94", name: "김의지", role: "성원", isPioneer: false },
+          { id: "m95", name: "장민혁", role: "자녀", isPioneer: false }
+        ]
+      },
+      {
+        name: "6집단",
+        members: [
+          { id: "m101", name: "박철민", role: "감독자", isPioneer: false },
+          { id: "m102", name: "이영길", role: "보조자", isPioneer: false },
+          { id: "m103", name: "김진아", role: "성원", isPioneer: false },
+          { id: "m104", name: "박경신", role: "성원", isPioneer: false },
+          { id: "m105", name: "김정희", role: "성원", isPioneer: false },
+          { id: "m106", name: "박명숙", role: "성원", isPioneer: false },
+          { id: "m107", name: "이정수", role: "성원", isPioneer: false },
+          { id: "m108", name: "배소월", role: "성원", isPioneer: false },
+          { id: "m109", name: "김규원", role: "성원", isPioneer: false },
+          { id: "m110", name: "도찬구", role: "성원", isPioneer: false },
+          { id: "m111", name: "안건희", role: "성원", isPioneer: false },
+          { id: "m112", name: "노형준", role: "성원", isPioneer: false },
+          { id: "m113", name: "김이슬", role: "성원", isPioneer: false },
+          { id: "m114", name: "양여원", role: "성원", isPioneer: false },
+          { id: "m115", name: "양혜원", role: "관심자", isPioneer: false }
+        ]
+      }
+    ],
+    servicePlan: {
+      location: "동부순환로 338-46",
+      days: {
+        mon: { leaders: ["백승혁", "이준형"], time: "오후 19:00", type: "줌 봉사", isCart: [false, false] },
+        tue: { leaders: ["이시형", "원보빈"], time: "오후 15:40", type: "호별", isCart: [false, false] },
+        wed: { leaders: ["강덕수", "이영길"], time: "오전 9:40", type: "호별", isCart: [false, false] },
+        thu: { leaders: ["오세길", "", "박승일", "이한직"], time: "오전 10:40 / 오후 15:40", type: "오전:전시대 / 오후: 호별", isCart: [true, false, false, false] },
+        fri: { leaders: ["박철민", "엄태현", "이영길", "오세길"], time: "오전 9:40 / 오후 17:40", type: "오전: 호별 / 오후: 전시대", isCart: [false, false, true, true] },
+        sat: { leaders: ["오성진", "김지웅"], time: "오전 9:40", type: "호별", isCart: [false, false] },
+        sun: { leaders: ["이상목", "박철민", "이순근"], time: "오전 7:00 / 오후 13:40", type: "오전:전시대 (1주: 집단봉사 / 2~5주: 호별)", isCart: [true, true, false] }
+      }
+    },
+    duties: [
+      { role: "조정자", names: ["이영길"], role2: "서 기", names2: ["이상목"], role3: "봉사감독자", names3: ["박철민"], role4: "파수대사회자", names4: ["강덕수", "박승일"] },
+      { role: "생봉감", names: ["오세길"], role2: "보조조언자", names2: ["강덕수"], role3: "공강조정자", names3: ["이영길"], role4: "중립돕는형제", names4: ["이시형", "이상목"] },
+      { role: "회 계", names: ["엄태현", "오성진"], role2: "청소조정자", names2: ["이시형"], role3: "연 단", names3: ["오성진", ".이수현"], role4: "주 차", names4: ["이영길"] },
+      { role: "구 역", names: ["원보빈"], role2: "서 적", names2: ["오성진"], role3: "줌 안내인", names3: ["이준형"], role4: "회관영선", names4: ["박승일", "김영호"] },
+      { role: "안 내", names: ["이영길", "이상목"], role2: "운영위원", names2: ["이상목", "엄태현"], role3: "미디어", names3: ["이순근", "엄태현"], role4: "미디어보조", names4: ["이준형", "백승혁"] }
+    ]
+  };
+
+  let appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+  // Firebase 실시간 동기화
+  CONG_DOC.onSnapshot((docSnap) => {
+    const syncStatusEl = document.getElementById("syncStatus");
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      if (data && data.groups) {
+        appData = data;
+      }
+    } else {
+      CONG_DOC.set(appData);
+    }
+    if (syncStatusEl) {
+      syncStatusEl.className = "sync-status online";
+      syncStatusEl.innerHTML = `<span class="sync-dot"></span>클라우드 연결됨`;
+    }
+    renderAllViews();
+  }, (err) => {
+    console.error("Sync Error:", err);
+    const syncStatusEl = document.getElementById("syncStatus");
+    if (syncStatusEl) {
+      syncStatusEl.className = "sync-status error";
+      syncStatusEl.innerHTML = `<span class="sync-dot"></span>오프라인`;
+    }
+    renderAllViews();
+  });
+
+  async function syncToCloud() {
+    await CONG_DOC.set(appData);
+  }
+
+  function renderAllViews() {
+    renderGroupGrid();
+    renderServicePlan();
+    renderDuties();
+    renderPrintViews();
+  }
+
+  // 1. 집단 성원 명단 렌더링
+  function renderGroupGrid() {
+    const container = document.getElementById("groupGridContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    appData.groups.forEach((grp, gIdx) => {
+      const col = document.createElement("div");
+      col.className = "group-col";
+
+      const header = document.createElement("div");
+      header.className = "group-header";
+      header.innerHTML = `
+        <span>${grp.name} (${grp.members.length}명)</span>
+        <button type="button" class="btn-outline" style="padding:2px 6px; font-size:0.75rem;" onclick="openAddMemberModal(${gIdx})">+ 추가</button>
+      `;
+      col.appendChild(header);
+
+      const list = document.createElement("div");
+      list.className = "member-list";
+
+      grp.members.forEach((m, mIdx) => {
+        const item = document.createElement("div");
+        let roleClass = "";
+        if (m.role === "감독자") roleClass = "supervisor";
+        else if (m.role === "보조자") roleClass = "assistant";
+        else if (m.role === "자녀") roleClass = "child";
+        else if (m.role === "관심자") roleClass = "interested";
+
+        item.className = `member-item ${roleClass}`;
+        item.innerHTML = `
+          <div>
+            <span style="font-size:0.72rem; color:#64748b; margin-right:4px;">${mIdx + 1}</span>
+            <span class="${m.isPioneer ? 'pioneer' : ''}">${m.name}</span>
+            ${m.role !== '성원' ? `<span style="font-size:0.7rem; color:#475569; margin-left:3px;">[${m.role}]</span>` : ''}
+          </div>
+          <div>
+            <button type="button" style="border:none; background:none; color:var(--primary); font-size:0.75rem; cursor:pointer;" onclick="openEditMemberModal(${gIdx}, '${m.id}')">수정</button>
+            <button type="button" style="border:none; background:none; color:var(--danger); font-size:0.75rem; cursor:pointer; margin-left:3px;" onclick="deleteMember(${gIdx}, '${m.id}')">✕</button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+
+      col.appendChild(list);
+      container.appendChild(col);
+    });
+  }
+
+  // 2. 주간 봉사 계획표 렌더링
+  function renderServicePlan() {
+    const tbody = document.getElementById("servicePlanBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    const p = appData.servicePlan;
+    const daysKey = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+    // 1행: 인도자 (최대 4칸)
+    for (let r = 0; r < 4; r++) {
+      const tr = document.createElement("tr");
+      if (r === 0) {
+        tr.innerHTML = `<td rowspan="4" class="center font-bold" style="background:#f8fafc;">인도자<br><span style="font-size:0.72rem; color:#15803d;">(전시대-녹색)</span></td>`;
+      }
+      daysKey.forEach(d => {
+        const dayInfo = p.days[d];
+        const name = (dayInfo.leaders && dayInfo.leaders[r]) || "";
+        const isCart = (dayInfo.isCart && dayInfo.isCart[r]) || false;
+        const bgClass = isCart ? "bg-green-highlight" : "";
+        tr.innerHTML += `<td class="center ${bgClass}" style="cursor:pointer;" onclick="editDayLeader('${d}', ${r})" title="클릭하여 수정">${name || '-'}</td>`;
+      });
+      tbody.appendChild(tr);
+    }
+
+    // 2행: 모임장소
+    const trLoc = document.createElement("tr");
+    trLoc.innerHTML = `
+      <td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td>
+      <td colspan="7" class="center font-bold" style="cursor:pointer; color:#0284c7;" onclick="editLocation()" title="클릭하여 장소 수정">${p.location || '-'}</td>
+    `;
+    tbody.appendChild(trLoc);
+
+    // 3행: 모임시간
+    const trTime = document.createElement("tr");
+    trTime.innerHTML = `<td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
+    daysKey.forEach(d => {
+      trTime.innerHTML += `<td class="center font-semibold" style="cursor:pointer; font-size:0.78rem;" onclick="editDayField('${d}', 'time')" title="클릭하여 시간 수정">${p.days[d].time || '-'}</td>`;
+    });
+    tbody.appendChild(trTime);
+
+    // 4행: 봉사 유형
+    const trType = document.createElement("tr");
+    trType.innerHTML = `<td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
+    daysKey.forEach(d => {
+      trType.innerHTML += `<td class="center" style="cursor:pointer; font-size:0.78rem;" onclick="editDayField('${d}', 'type')" title="클릭하여 유형 수정">${p.days[d].type || '-'}</td>`;
+    });
+    tbody.appendChild(trType);
+  }
+
+  // 3. 회중 임명표 렌더링
+  function renderDuties() {
+    const tbody = document.getElementById("dutyBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    appData.duties.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="bg-green-light center">${row.role}</td>
+        <td class="center font-bold">${row.names.join(", ")}</td>
+        <td class="bg-green-light center">${row.role2}</td>
+        <td class="center font-bold">${row.names2.join(", ")}</td>
+        <td class="bg-green-light center">${row.role3}</td>
+        <td class="center font-bold">${row.names3.join(", ")}</td>
+        <td class="bg-green-light center">${row.role4}</td>
+        <td class="center font-bold">${row.names4.join(", ")}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // 4. 인쇄 전용 뷰 렌더링 (원본 엑셀 테이블 양식 완벽 재현)
+  function renderPrintViews() {
+    // 4-1. 인쇄용 집단 성원 표
+    const pGroup = document.getElementById("printGroupTable");
+    if (pGroup) {
+      let maxMembers = 0;
+      appData.groups.forEach(g => { if (g.members.length > maxMembers) maxMembers = g.members.length; });
+
+      let html = `<thead><tr><th style="width:5%;">No</th>`;
+      appData.groups.forEach(g => { html += `<th>${g.name}</th>`; });
+      html += `</tr></thead><tbody>`;
+
+      for (let i = 0; i < maxMembers; i++) {
+        html += `<tr><td class="center" style="background:#f8fafc; font-weight:bold;">${i + 1}</td>`;
+        appData.groups.forEach(g => {
+          const m = g.members[i];
+          if (m) {
+            let rolePrefix = "";
+            if (m.role === "감독자") rolePrefix = "<b style='color:#1e40af;'>[감] </b>";
+            else if (m.role === "보조자") rolePrefix = "<b style='color:#166534;'>[보] </b>";
+            else if (m.role === "자녀") rolePrefix = "<span style='color:#666;'>[자] </span>";
+            else if (m.role === "관심자") rolePrefix = "<span style='color:#b45309;'>[관] </span>";
+
+            html += `<td class="center ${m.isPioneer ? 'pioneer' : ''}">${rolePrefix}${m.name}</td>`;
+          } else {
+            html += `<td></td>`;
+          }
+        });
+        html += `</tr>`;
+      }
+      html += `</tbody>`;
+      pGroup.innerHTML = html;
+    }
+
+    // 4-2. 인쇄용 봉사 및 인도자 표
+    const pServ = document.getElementById("printServiceTable");
+    if (pServ) {
+      const p = appData.servicePlan;
+      const daysKey = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+      let html = `
+        <thead>
+          <tr><th colspan="8" class="bg-blue-header">봉사 및 인도자</th></tr>
+          <tr style="background:#f1f5f9;">
+            <th style="width:12%;">요 일</th>
+            <th>월요일</th><th>화요일</th><th>수요일</th><th>목요일</th><th>금요일</th><th>토요일</th><th>일요일</th>
+          </tr>
+        </thead>
+        <tbody>
+      `;
+
+      for (let r = 0; r < 4; r++) {
+        html += `<tr>`;
+        if (r === 0) html += `<td rowspan="4" class="center font-bold" style="background:#f8fafc;">인도자<br><span style="font-size:6pt; color:#15803d;">(전시대-녹색)</span></td>`;
+        daysKey.forEach(d => {
+          const name = (p.days[d].leaders && p.days[d].leaders[r]) || "";
+          const isCart = (p.days[d].isCart && p.days[d].isCart[r]) || false;
+          html += `<td class="center ${isCart ? 'bg-green-highlight' : ''}">${name}</td>`;
+        });
+        html += `</tr>`;
+      }
+
+      html += `<tr><td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td><td colspan="7" class="center font-bold" style="color:#0284c7;">${p.location}</td></tr>`;
+      
+      html += `<tr><td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
+      daysKey.forEach(d => { html += `<td class="center" style="font-size:6.8pt; font-weight:bold;">${p.days[d].time}</td>`; });
+      html += `</tr>`;
+
+      html += `<tr><td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
+      daysKey.forEach(d => { html += `<td class="center" style="font-size:6.5pt;">${p.days[d].type}</td>`; });
+      html += `</tr></tbody>`;
+      pServ.innerHTML = html;
+    }
+
+    // 4-3. 인쇄용 회중 임명 표
+    const pDuty = document.getElementById("printDutyTable");
+    if (pDuty) {
+      let html = `<thead><tr><th colspan="8" class="bg-blue-header">회중 임명</th></tr></thead><tbody>`;
+      appData.duties.forEach(row => {
+        html += `
+          <tr>
+            <td class="bg-green-light center" style="width:11%;">${row.role}</td>
+            <td class="center font-bold" style="width:14%;">${row.names.join(", ")}</td>
+            <td class="bg-green-light center" style="width:11%;">${row.role2}</td>
+            <td class="center font-bold" style="width:14%;">${row.names2.join(", ")}</td>
+            <td class="bg-green-light center" style="width:11%;">${row.role3}</td>
+            <td class="center font-bold" style="width:14%;">${row.names3.join(", ")}</td>
+            <td class="bg-green-light center" style="width:11%;">${row.role4}</td>
+            <td class="center font-bold" style="width:14%;">${row.names4.join(", ")}</td>
+          </tr>
+        `;
+      });
+      html += `</tbody>`;
+      pDuty.innerHTML = html;
+    }
+  }
+
+  // --- 성원 추가 / 수정 모달 로직 ---
+  function openAddMemberModal(groupIdx) {
+    document.getElementById("modalGroupIdx").value = groupIdx;
+    document.getElementById("modalMemberId").value = "";
+    document.getElementById("modalGroupSelect").value = groupIdx;
+    document.getElementById("modalMemberName").value = "";
+    document.getElementById("modalMemberRole").value = "성원";
+    document.getElementById("modalIsPioneer").checked = false;
+    document.getElementById("memberModalTitle").innerText = `${appData.groups[groupIdx].name} 성원 추가`;
+    document.getElementById("memberModal").classList.add("show");
+  }
+
+  function openEditMemberModal(groupIdx, memberId) {
+    const member = appData.groups[groupIdx].members.find(m => m.id === memberId);
+    if (!member) return;
+
+    document.getElementById("modalGroupIdx").value = groupIdx;
+    document.getElementById("modalMemberId").value = memberId;
+    document.getElementById("modalGroupSelect").value = groupIdx;
+    document.getElementById("modalMemberName").value = member.name;
+    document.getElementById("modalMemberRole").value = member.role || "성원";
+    document.getElementById("modalIsPioneer").checked = !!member.isPioneer;
+    document.getElementById("memberModalTitle").innerText = `성원 정보 수정`;
+    document.getElementById("memberModal").classList.add("show");
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove("show");
+  }
+
+  async function saveMember(e) {
+    e.preventDefault();
+    const gIdx = parseInt(document.getElementById("modalGroupIdx").value, 10);
+    const mId = document.getElementById("modalMemberId").value;
+    const name = document.getElementById("modalMemberName").value.trim();
+    const role = document.getElementById("modalMemberRole").value;
+    const isPioneer = document.getElementById("modalIsPioneer").checked;
+
+    if (!name) return alert("이름을 입력해주세요.");
+
+    if (mId) {
+      // 수정
+      const idx = appData.groups[gIdx].members.findIndex(m => m.id === mId);
+      if (idx !== -1) {
+        appData.groups[gIdx].members[idx] = { id: mId, name, role, isPioneer };
+      }
+    } else {
+      // 추가
+      appData.groups[gIdx].members.push({
+        id: 'm_' + Date.now(),
+        name,
+        role,
+        isPioneer
+      });
+    }
+
+    await syncToCloud();
+    closeModal("memberModal");
+  }
+
+  async function deleteMember(gIdx, mId) {
+    const member = appData.groups[gIdx].members.find(m => m.id === mId);
+    if (!member) return;
+
+    if (confirm(`[${appData.groups[gIdx].name}] "${member.name}" 성원을 삭제하시겠습니까?`)) {
+      appData.groups[gIdx].members = appData.groups[gIdx].members.filter(m => m.id !== mId);
+      await syncToCloud();
+    }
+  }
+
+  // --- 봉사 계획표 인라인 수정 로직 ---
+  async function editLocation() {
+    const newLoc = prompt("새로운 모임 장소를 입력하세요:", appData.servicePlan.location);
+    if (newLoc !== null) {
+      appData.servicePlan.location = newLoc.trim();
+      await syncToCloud();
+    }
+  }
+
+  async function editDayLeader(dayKey, slotIdx) {
+    const curName = (appData.servicePlan.days[dayKey].leaders && appData.servicePlan.days[dayKey].leaders[slotIdx]) || "";
+    const isCart = (appData.servicePlan.days[dayKey].isCart && appData.servicePlan.days[dayKey].isCart[slotIdx]) || false;
+
+    const newName = prompt(`인도자 성명을 입력하세요 (비우면 공란):`, curName);
+    if (newName === null) return;
+
+    const setCart = confirm("이 봉사는 '전시대(녹색 하이라이트)' 봉사입니까?\n[확인]=전시대 봉사 / [취소]=일반 봉사");
+
+    if (!appData.servicePlan.days[dayKey].leaders) appData.servicePlan.days[dayKey].leaders = ["", "", "", ""];
+    if (!appData.servicePlan.days[dayKey].isCart) appData.servicePlan.days[dayKey].isCart = [false, false, false, false];
+
+    appData.servicePlan.days[dayKey].leaders[slotIdx] = newName.trim();
+    appData.servicePlan.days[dayKey].isCart[slotIdx] = setCart;
+
+    await syncToCloud();
+  }
+
+  async function editDayField(dayKey, field) {
+    const label = field === "time" ? "모임 시간" : "봉사 유형";
+    const curVal = appData.servicePlan.days[dayKey][field] || "";
+    const newVal = prompt(`${dayKey} ${label}을 수정하세요:`, curVal);
+    if (newVal !== null) {
+      appData.servicePlan.days[dayKey][field] = newVal.trim();
+      await syncToCloud();
+    }
+  }
+
+  // --- 회중 임명표 모달 편집 로직 ---
+  function openDutyEditModal() {
+    const box = document.getElementById("dutyModalInputs");
+    box.innerHTML = "";
+
+    appData.duties.forEach((row, rIdx) => {
+      const div = document.createElement("div");
+      div.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;";
+      div.innerHTML = `
+        <div>
+          <label style="font-size:0.75rem; font-weight:700; color:#166534;">${row.role}</label>
+          <input type="text" id="duty_${rIdx}_1" value="${row.names.join(', ')}">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700; color:#166534;">${row.role2}</label>
+          <input type="text" id="duty_${rIdx}_2" value="${row.names2.join(', ')}">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700; color:#166534;">${row.role3}</label>
+          <input type="text" id="duty_${rIdx}_3" value="${row.names3.join(', ')}">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; font-weight:700; color:#166534;">${row.role4}</label>
+          <input type="text" id="duty_${rIdx}_4" value="${row.names4.join(', ')}">
+        </div>
+      `;
+      box.appendChild(div);
+    });
+
+    document.getElementById("dutyModal").classList.add("show");
+  }
+
+  async function saveDutiesFromModal() {
+    appData.duties.forEach((row, rIdx) => {
+      const v1 = document.getElementById(`duty_${rIdx}_1`).value;
+      const v2 = document.getElementById(`duty_${rIdx}_2`).value;
+      const v3 = document.getElementById(`duty_${rIdx}_3`).value;
+      const v4 = document.getElementById(`duty_${rIdx}_4`).value;
+
+      row.names = v1.split(',').map(s => s.trim()).filter(Boolean);
+      row.names2 = v2.split(',').map(s => s.trim()).filter(Boolean);
+      row.names3 = v3.split(',').map(s => s.trim()).filter(Boolean);
+      row.names4 = v4.split(',').map(s => s.trim()).filter(Boolean);
+    });
+
+    await syncToCloud();
+    closeModal("dutyModal");
+  }
+
+  // --- 백업 & 기본값 복원 ---
+  function exportDataJSON() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+    const dlAnchor = document.createElement("a");
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `회중집단_봉사계획표_백업_${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchor.click();
+  }
+
+  async function resetToInitialImageDefaults() {
+    if (confirm("첨부해주신 이미지의 초기 기본 데이터로 복원하시겠습니까?")) {
+      appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      await syncToCloud();
+      alert("기본 데이터로 복원되었습니다.");
+    }
+  }
+</script>
+</body>
+</html>
