@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>회중 집단 및 봉사 계획 관리 시스템</title>
   
-  <!-- 파이어베이스 라이브러리 -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
-  <!-- 고화질 이미지 캡처 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -74,7 +72,6 @@
 
     .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
-    /* 집단 성원 카드 그리드 */
     .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 10px; margin-bottom: 16px; }
     .group-col { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
     .group-header {
@@ -122,7 +119,6 @@
     .member-item.interested { color: #d97706; font-size: 0.78rem; background: #fffbeb; }
     .pioneer { font-style: italic; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
-    /* 테이블 스타일 */
     table { width: 100%; border-collapse: collapse; font-size: 0.84rem; table-layout: fixed; }
     th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: center; vertical-align: middle; }
     th { font-weight: 700; background-color: #f1f5f9; }
@@ -130,7 +126,6 @@
     .bg-green-highlight { background-color: var(--green-highlight) !important; font-weight: 700; }
     .bg-blue-header { background-color: var(--blue-header) !important; color: var(--blue-header-dark); font-weight: 800; font-size: 0.95rem; }
 
-    /* 팝업 모달 */
     .modal-backdrop { 
       position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; pointer-events: none;
     }
@@ -141,21 +136,23 @@
     .modal-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
     input, select { padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.86rem; outline: none; width: 100%; }
 
-    /* 인쇄 전용 영역 */
+    /* ========================================================
+       ★ [A4 가로 인쇄 최적화]: 공백 없이 꽉 찬 풀-블리드 서식
+       ======================================================== */
     .print-only { display: none; }
 
     @media print {
       @page { 
         size: A4 landscape; 
-        margin: 5mm 6mm; 
+        margin: 5mm 6mm; /* 상하좌우를 최대로 활용 */
       }
       html, body { 
         background: #fff !important; 
         padding: 0 !important; 
         margin: 0 !important; 
         color: #000 !important;
-        font-size: 7.2pt !important;
-        line-height: 1.15 !important;
+        font-size: 8.2pt !important; /* 7.2pt -> 8.2pt로 키워 가독성 및 채움 극대화 */
+        line-height: 1.25 !important;
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important;
       }
@@ -164,7 +161,7 @@
         display: none !important; 
       }
 
-      .print-only { display: block !important; }
+      .print-only { display: block !important; width: 100% !important; }
       .container { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
       .card { border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
 
@@ -174,29 +171,30 @@
         width: 100% !important; 
         table-layout: fixed !important;
         page-break-inside: avoid !important;
+        margin-bottom: 7px !important; /* 표 사이 간격을 적당히 주어 아래쪽 휑한 공백 해소 */
       }
       th, td { 
         border: 1px solid #444 !important; 
-        padding: 2.2px 3px !important; 
+        padding: 4.0px 4px !important; /* 기존 2.2px -> 4.0px로 넉넉하게 확장 */
         color: #000 !important; 
-        font-size: 7.2pt !important;
+        font-size: 8.2pt !important;
       }
       .print-header-banner {
         text-align: center;
-        font-size: 1.15rem;
+        font-size: 1.35rem;
         font-weight: 800;
         margin-bottom: 4px;
         letter-spacing: 2px;
       }
       .pioneer-note {
         text-align: right;
-        font-size: 6.8pt;
+        font-size: 7.6pt;
         font-weight: bold;
-        margin: 2px 0;
+        margin-bottom: 4px;
       }
       .print-clean-sub {
         display: block;
-        font-size: 6.2pt;
+        font-size: 7.2pt;
         font-weight: normal;
         color: #1e3a8a;
         margin-top: 1px;
@@ -223,20 +221,14 @@
     </div>
   </header>
 
-  <!-- ==========================================
-       1. 집단 성원 명단 (사랑 ~ 온화)
-       ========================================== -->
+  <!-- 1. 집단 성원 명단 -->
   <div class="section-title no-print">
     <span>👥 집단 성원 명단 (기울임: 정규 파이오니아)</span>
   </div>
 
-  <div class="group-grid no-print" id="groupGridContainer">
-    <!-- JS 렌더링 -->
-  </div>
+  <div class="group-grid no-print" id="groupGridContainer"></div>
 
-  <!-- ==========================================
-       2. 주간 봉사 및 인도자 계획표
-       ========================================== -->
+  <!-- 2. 주간 봉사 및 인도자 계획표 -->
   <div class="section-title no-print">
     <span>🚗 봉사 및 인도자 계획표</span>
     <span style="font-size:0.75rem; color:#15803d; font-weight:600;">※ 전시대 봉사는 연두색으로 자동 하이라이트됩니다.</span>
@@ -259,15 +251,11 @@
           <th style="width: 13%;">일요일</th>
         </tr>
       </thead>
-      <tbody id="servicePlanBody">
-        <!-- JS 렌더링 -->
-      </tbody>
+      <tbody id="servicePlanBody"></tbody>
     </table>
   </div>
 
-  <!-- ==========================================
-       3. 회중 임명표
-       ========================================== -->
+  <!-- 3. 회중 임명표 -->
   <div class="section-title no-print">
     <span>🏛️ 회중 임명표</span>
     <button type="button" class="btn-outline" style="padding:3px 8px; font-size:0.75rem;" onclick="openDutyEditModal()">✏️ 임명자 일괄 수정</button>
@@ -278,30 +266,21 @@
       회중 임명
     </div>
     <table id="dutyTable">
-      <tbody id="dutyBody">
-        <!-- JS 렌더링 -->
-      </tbody>
+      <tbody id="dutyBody"></tbody>
     </table>
   </div>
 
-  <!-- ========================================================
-       ★ 인쇄 및 이미지 생성 전용 오프스크린 템플릿 ★
-       ======================================================== -->
-  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1200px; background: #ffffff; padding: 20px;" class="print-only-layout">
-    <div style="text-align: center; font-size: 1.35rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px; color: #000;">회중 집단 및 주간 봉사 계획표</div>
-    <div style="text-align: right; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; color: #444;">기울임: 정규 파이오니아</div>
+  <!-- 인쇄 & 고화질 이미지 캡처 전용 템플릿 (A4 꽉 차게 피팅) -->
+  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; background: #ffffff; padding: 22px;">
+    <div style="text-align: center; font-size: 1.45rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 6px; color: #000;">회중 집단 및 주간 봉사 계획표</div>
+    <div style="text-align: right; font-size: 0.85rem; font-weight: bold; margin-bottom: 6px; color: #333;">기울임: 정규 파이오니아</div>
     
-    <!-- 캡처/인쇄용 1. 집단 성원 표 -->
-    <table id="printGroupTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
-
-    <!-- 캡처/인쇄용 2. 봉사 및 인도자 표 -->
-    <table id="printServiceTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
-
-    <!-- 캡처/인쇄용 3. 회중 임명 표 -->
+    <table id="printGroupTable" style="margin-bottom: 8px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+    <table id="printServiceTable" style="margin-bottom: 8px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
     <table id="printDutyTable" style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
   </div>
 
-  <!-- A4 브라우저 인쇄 전용 영역 -->
+  <!-- 브라우저 인쇄 전용 영역 -->
   <div class="print-only">
     <div class="print-header-banner">회중 집단 및 주간 봉사 계획표</div>
     <div class="pioneer-note">기울임: 정규 파이오니아</div>
@@ -404,7 +383,6 @@
 </div>
 
 <script>
-  // Firebase 초기화
   const firebaseConfig = {
     apiKey: "AIzaSyCdZlSMTeiZvmN_qn4Yqva06NE_NR7QB7I",
     authDomain: "love-d0dcf.firebaseapp.com",
@@ -789,7 +767,7 @@
 
       for (let r = 0; r < 4; r++) {
         html += `<tr>`;
-        if (r === 0) html += `<td rowspan="4" class="center font-bold" style="background:#f8fafc;">인도자<br><span style="font-size:6pt; color:#15803d;">(전시대-녹색)</span></td>`;
+        if (r === 0) html += `<td rowspan="4" class="center font-bold" style="background:#f8fafc;">인도자<br><span style="font-size:6.8pt; color:#15803d;">(전시대-녹색)</span></td>`;
         daysKey.forEach(d => {
           const name = (p.days[d].leaders && p.days[d].leaders[r]) || "";
           const isCart = (p.days[d].isCart && p.days[d].isCart[r]) || false;
@@ -801,11 +779,11 @@
       html += `<tr><td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td><td colspan="7" class="center font-bold" style="color:#0284c7;">${p.location}</td></tr>`;
       
       html += `<tr><td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
-      daysKey.forEach(d => { html += `<td class="center" style="font-size:6.8pt; font-weight:bold;">${p.days[d].time}</td>`; });
+      daysKey.forEach(d => { html += `<td class="center" style="font-size:7.4pt; font-weight:bold;">${p.days[d].time}</td>`; });
       html += `</tr>`;
 
       html += `<tr><td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
-      daysKey.forEach(d => { html += `<td class="center" style="font-size:6.5pt;">${p.days[d].type}</td>`; });
+      daysKey.forEach(d => { html += `<td class="center" style="font-size:7.2pt;">${p.days[d].type}</td>`; });
       html += `</tr></tbody>`;
       pServ.innerHTML = html;
     }
@@ -831,7 +809,6 @@
       pDuty.innerHTML = html;
     }
 
-    // 브라우저 직접 인쇄 컨테이너 복제
     const printDirect = document.getElementById("printContainerDirect");
     const template = document.getElementById("imageCaptureTemplate");
     if (printDirect && template) {
@@ -839,7 +816,6 @@
     }
   }
 
-  // ★ 집단 편성표 고화질 사진(이미지) 생성 & 저장 함수
   function generatePlanImage() {
     const template = document.getElementById("imageCaptureTemplate");
     if (!template) return;
@@ -849,7 +825,6 @@
     const todayStr = new Date().toISOString().slice(0, 10);
     currentGeneratedFilename = `회중_집단편성표_${todayStr}.png`;
 
-    // html2canvas로 3배율 고해상도 캡처
     html2canvas(template, {
       scale: 2.5,
       backgroundColor: "#ffffff",
@@ -859,7 +834,6 @@
         currentGeneratedBlob = blob;
         const dataUrl = canvas.toDataURL("image/png");
 
-        // 모바일 네이티브 공유 API 지원 시 바로 공유 창 띄우기
         const file = new File([blob], currentGeneratedFilename, { type: "image/png" });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           document.getElementById("btnNativeShare").style.display = "inline-flex";
@@ -867,13 +841,11 @@
             files: [file],
             title: `회중 집단 및 주간 봉사 계획표 (${todayStr})`
           }).catch(() => {
-            // 사용자가 취소하거나 실패 시 미리보기 모달 표시
             openImagePreviewModal(dataUrl);
           });
         } else {
           document.getElementById("btnNativeShare").style.display = "none";
           openImagePreviewModal(dataUrl);
-          // PC 환경에서는 바로 파일 다운로드 트리거
           downloadImageDirectly();
         }
       }, "image/png");
@@ -912,7 +884,6 @@
     alert("이미지를 1~2초간 꾹 눌러 '사진 앱에 저장'을 선택해 주세요!");
   }
 
-  // --- 성원 추가/수정 모달 ---
   function openAddMemberModal(groupIdx) {
     document.getElementById("modalGroupIdx").value = groupIdx;
     document.getElementById("modalMemberId").value = "";
@@ -980,7 +951,6 @@
     }
   }
 
-  // --- 봉사 계획표 수정 ---
   async function editLocation() {
     const newLoc = prompt("새로운 모임 장소를 입력하세요:", appData.servicePlan.location);
     if (newLoc !== null) {
@@ -1016,7 +986,6 @@
     }
   }
 
-  // --- 회중 임명표 모달 편집 ---
   function openDutyEditModal() {
     const box = document.getElementById("dutyModalInputs");
     box.innerHTML = "";
