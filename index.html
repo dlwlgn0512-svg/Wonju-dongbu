@@ -20,7 +20,6 @@
       --border: #cbd5e1;
       --success: #10b981;
       --danger: #ef4444;
-      /* 원본 표 전용 녹색/연두색 & 하늘색 테마 */
       --green-light: #c8e6c9;
       --green-highlight: #bbf7d0;
       --blue-header: #e0f2fe;
@@ -71,20 +70,37 @@
 
     .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
-    /* 1. 집단 성원 그리드 & 테이블 스타일 */
-    .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    /* 집단 성원 카드 그리드 */
+    .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 10px; margin-bottom: 16px; }
     .group-col { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
     .group-header {
       background: #f1f5f9;
       padding: 8px 10px;
-      font-weight: 700;
-      text-align: center;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .group-header-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.88rem;
+      font-weight: 800;
+      font-size: 0.92rem;
+      color: #0f172a;
     }
+    .cleaning-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #047857;
+      background: #ecfdf5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #a7f3d0;
+      text-align: center;
+    }
+
     .member-list { padding: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 480px; overflow-y: auto; }
     .member-item {
       padding: 5px 8px;
@@ -102,7 +118,7 @@
     .member-item.interested { color: #d97706; font-size: 0.78rem; background: #fffbeb; }
     .pioneer { font-style: italic; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
-    /* 공통 테이블 스타일 */
+    /* 테이블 스타일 */
     table { width: 100%; border-collapse: collapse; font-size: 0.84rem; table-layout: fixed; }
     th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: center; vertical-align: middle; }
     th { font-weight: 700; background-color: #f1f5f9; }
@@ -121,9 +137,7 @@
     .modal-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
     input, select { padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.86rem; outline: none; width: 100%; }
 
-    /* =========================================================
-       ★ [A4 가로 1장 인쇄 최적화 - 원본 엑셀 서식 재현] ★
-       ========================================================= */
+    /* 인쇄 전용 영역 */
     .print-only { display: none; }
 
     @media print {
@@ -176,6 +190,13 @@
         font-weight: bold;
         margin: 2px 0;
       }
+      .print-clean-sub {
+        display: block;
+        font-size: 6.2pt;
+        font-weight: normal;
+        color: #1e3a8a;
+        margin-top: 1px;
+      }
     }
   </style>
 </head>
@@ -188,24 +209,24 @@
         회중 집단 및 봉사 계획 관리 시스템
         <span class="sync-status" id="syncStatus"><span class="sync-dot"></span>클라우드 연결 중...</span>
       </h1>
-      <p style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">1~6집단 성원 관리 · 주간 봉사 및 인도자 계획표 · 회중 임명표 (love-d0dcf)</p>
+      <p style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">사랑 · 기쁨 · 친절 · 선함 · 믿음 · 온화 집단 명단 및 청소 배정 관리</p>
     </div>
     <div class="header-actions no-print">
       <button type="button" class="btn-print" onclick="window.print()">🖨️ A4 1장 인쇄 / PDF 저장</button>
       <button type="button" class="btn-outline" onclick="exportDataJSON()">💾 백업</button>
-      <button type="button" class="btn-outline" onclick="resetToInitialImageDefaults()">🔄 기본값 복원</button>
+      <button type="button" class="btn-outline" onclick="resetToInitialDefaults()">🔄 기본값 복원</button>
     </div>
   </header>
 
   <!-- ==========================================
-       1. 집단 성원 명단 (1집단 ~ 6집단)
+       1. 집단 성원 명단 (사랑 ~ 온화)
        ========================================== -->
   <div class="section-title no-print">
     <span>👥 집단 성원 명단 (기울임: 정규 파이오니아)</span>
   </div>
 
   <div class="group-grid no-print" id="groupGridContainer">
-    <!-- JS로 1~6집단 렌더링 -->
+    <!-- JS 렌더링 -->
   </div>
 
   <!-- ==========================================
@@ -265,20 +286,14 @@
     <div class="print-header-banner">회중 집단 및 주간 봉사 계획표</div>
     <div class="pioneer-note">기울임: 정규 파이오니아</div>
     
-    <!-- 인쇄용 1~6집단 명단 테이블 -->
-    <table id="printGroupTable" style="margin-bottom: 4px;">
-      <!-- JS 렌더링 -->
-    </table>
+    <!-- 인쇄용 집단 명단 테이블 -->
+    <table id="printGroupTable" style="margin-bottom: 4px;"></table>
 
     <!-- 인쇄용 봉사 및 인도자 테이블 -->
-    <table id="printServiceTable" style="margin-bottom: 4px;">
-      <!-- JS 렌더링 -->
-    </table>
+    <table id="printServiceTable" style="margin-bottom: 4px;"></table>
 
     <!-- 인쇄용 회중 임명 테이블 -->
-    <table id="printDutyTable">
-      <!-- JS 렌더링 -->
-    </table>
+    <table id="printDutyTable"></table>
   </div>
 </div>
 
@@ -297,12 +312,12 @@
         <div style="margin-bottom:10px;">
           <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:3px;">소속 집단</label>
           <select id="modalGroupSelect" style="width:100%;" disabled>
-            <option value="0">1집단</option>
-            <option value="1">2집단</option>
-            <option value="2">3집단</option>
-            <option value="3">4집단</option>
-            <option value="4">5집단</option>
-            <option value="5">6집단</option>
+            <option value="0">사랑 집단</option>
+            <option value="1">기쁨 집단</option>
+            <option value="2">친절 집단</option>
+            <option value="3">선함 집단</option>
+            <option value="4">믿음 집단</option>
+            <option value="5">온화 집단</option>
           </select>
         </div>
 
@@ -345,9 +360,7 @@
       <h3 style="font-size:1rem;">회중 임명자 수정</h3>
       <button type="button" style="border:none; background:none; font-size:1.2rem; cursor:pointer;" onclick="closeModal('dutyModal')">✕</button>
     </div>
-    <div class="modal-body" id="dutyModalInputs">
-      <!-- 동적 생성 -->
-    </div>
+    <div class="modal-body" id="dutyModalInputs"></div>
     <div class="modal-footer">
       <button type="button" class="btn-outline" onclick="closeModal('dutyModal')">취소</button>
       <button type="button" class="btn-primary" onclick="saveDutiesFromModal()">저장하기</button>
@@ -356,7 +369,7 @@
 </div>
 
 <script>
-  // Firebase 초기화 (love-d0dcf 프로젝트 연동)
+  // Firebase 초기화
   const firebaseConfig = {
     apiKey: "AIzaSyCdZlSMTeiZvmN_qn4Yqva06NE_NR7QB7I",
     authDomain: "love-d0dcf.firebaseapp.com",
@@ -372,11 +385,12 @@
   const db = firebase.firestore();
   const CONG_DOC = db.collection("sarangGroup").doc("congregationServicePlan");
 
-  // 이미지에 나온 초기 원본 데이터 세팅
+  // 집단 이름 및 청소월, 운영위원 수정 기본 데이터
   const DEFAULT_DATA = {
     groups: [
       {
-        name: "1집단",
+        name: "사랑 집단",
+        cleanMonths: "청소 12월 · 6월",
         members: [
           { id: "m1", name: "강덕수", role: "감독자", isPioneer: false },
           { id: "m2", name: "원보빈", role: "보조자", isPioneer: false },
@@ -397,7 +411,8 @@
         ]
       },
       {
-        name: "2집단",
+        name: "기쁨 집단",
+        cleanMonths: "청소 1월 · 7월",
         members: [
           { id: "m21", name: "이순근", role: "감독자", isPioneer: false },
           { id: "m22", name: "이시형", role: "보조자", isPioneer: false },
@@ -415,7 +430,8 @@
         ]
       },
       {
-        name: "3집단",
+        name: "친절 집단",
+        cleanMonths: "청소 2월 · 8월",
         members: [
           { id: "m41", name: "이상목", role: "감독자", isPioneer: false },
           { id: "m42", name: "이준형", role: "보조자", isPioneer: false },
@@ -436,7 +452,8 @@
         ]
       },
       {
-        name: "4집단",
+        name: "선함 집단",
+        cleanMonths: "청소 3월 · 9월",
         members: [
           { id: "m61", name: "박승일", role: "감독자", isPioneer: false },
           { id: "m62", name: "오성진", role: "보조자", isPioneer: false },
@@ -457,7 +474,8 @@
         ]
       },
       {
-        name: "5집단",
+        name: "믿음 집단",
+        cleanMonths: "청소 4월 · 10월",
         members: [
           { id: "m81", name: "오세길", role: "감독자", isPioneer: false },
           { id: "m82", name: "엄태현", role: "보조자", isPioneer: false },
@@ -477,7 +495,8 @@
         ]
       },
       {
-        name: "6집단",
+        name: "온화 집단",
+        cleanMonths: "청소 5월 · 11월",
         members: [
           { id: "m101", name: "박철민", role: "감독자", isPioneer: false },
           { id: "m102", name: "이영길", role: "보조자", isPioneer: false },
@@ -514,7 +533,7 @@
       { role: "생봉감", names: ["오세길"], role2: "보조조언자", names2: ["강덕수"], role3: "공강조정자", names3: ["이영길"], role4: "중립돕는형제", names4: ["이시형", "이상목"] },
       { role: "회 계", names: ["엄태현", "오성진"], role2: "청소조정자", names2: ["이시형"], role3: "연 단", names3: ["오성진", ".이수현"], role4: "주 차", names4: ["이영길"] },
       { role: "구 역", names: ["원보빈"], role2: "서 적", names2: ["오성진"], role3: "줌 안내인", names3: ["이준형"], role4: "회관영선", names4: ["박승일", "김영호"] },
-      { role: "안 내", names: ["이영길", "이상목"], role2: "운영위원", names2: ["이상목", "엄태현"], role3: "미디어", names3: ["이순근", "엄태현"], role4: "미디어보조", names4: ["이준형", "백승혁"] }
+      { role: "안 내", names: ["이영길", "이상목"], role2: "운영위원", names2: ["이상목"], role3: "미디어", names3: ["이순근", "엄태현"], role4: "미디어보조", names4: ["이준형", "백승혁"] }
     ]
   };
 
@@ -526,6 +545,17 @@
     if (docSnap.exists) {
       const data = docSnap.data();
       if (data && data.groups) {
+        // 기존 데이터에 새 집단명과 청소월 병합
+        data.groups.forEach((g, idx) => {
+          if (DEFAULT_DATA.groups[idx]) {
+            g.name = DEFAULT_DATA.groups[idx].name;
+            g.cleanMonths = DEFAULT_DATA.groups[idx].cleanMonths;
+          }
+        });
+        // 운영위원 엄태현 제거 보정
+        if (data.duties && data.duties[4]) {
+          data.duties[4].names2 = ["이상목"];
+        }
         appData = data;
       }
     } else {
@@ -557,7 +587,7 @@
     renderPrintViews();
   }
 
-  // 1. 집단 성원 명단 렌더링
+  // 1. 집단 성원 명단 (헤더에 집단명 + 청소 담당 월 배지 표기)
   function renderGroupGrid() {
     const container = document.getElementById("groupGridContainer");
     if (!container) return;
@@ -570,8 +600,11 @@
       const header = document.createElement("div");
       header.className = "group-header";
       header.innerHTML = `
-        <span>${grp.name} (${grp.members.length}명)</span>
-        <button type="button" class="btn-outline" style="padding:2px 6px; font-size:0.75rem;" onclick="openAddMemberModal(${gIdx})">+ 추가</button>
+        <div class="group-header-top">
+          <span>${grp.name} (${grp.members.length}명)</span>
+          <button type="button" class="btn-outline" style="padding:2px 6px; font-size:0.75rem;" onclick="openAddMemberModal(${gIdx})">+ 추가</button>
+        </div>
+        <div class="cleaning-badge">🧹 ${grp.cleanMonths || '청소 배정'}</div>
       `;
       col.appendChild(header);
 
@@ -606,7 +639,7 @@
     });
   }
 
-  // 2. 주간 봉사 계획표 렌더링
+  // 2. 주간 봉사 계획표
   function renderServicePlan() {
     const tbody = document.getElementById("servicePlanBody");
     if (!tbody) return;
@@ -615,7 +648,6 @@
     const p = appData.servicePlan;
     const daysKey = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
-    // 1행: 인도자 (최대 4칸)
     for (let r = 0; r < 4; r++) {
       const tr = document.createElement("tr");
       if (r === 0) {
@@ -631,7 +663,6 @@
       tbody.appendChild(tr);
     }
 
-    // 2행: 모임장소
     const trLoc = document.createElement("tr");
     trLoc.innerHTML = `
       <td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td>
@@ -639,7 +670,6 @@
     `;
     tbody.appendChild(trLoc);
 
-    // 3행: 모임시간
     const trTime = document.createElement("tr");
     trTime.innerHTML = `<td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
     daysKey.forEach(d => {
@@ -647,7 +677,6 @@
     });
     tbody.appendChild(trTime);
 
-    // 4행: 봉사 유형
     const trType = document.createElement("tr");
     trType.innerHTML = `<td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
     daysKey.forEach(d => {
@@ -656,7 +685,7 @@
     tbody.appendChild(trType);
   }
 
-  // 3. 회중 임명표 렌더링
+  // 3. 회중 임명표
   function renderDuties() {
     const tbody = document.getElementById("dutyBody");
     if (!tbody) return;
@@ -678,16 +707,17 @@
     });
   }
 
-  // 4. 인쇄 전용 뷰 렌더링 (원본 엑셀 테이블 양식 완벽 재현)
+  // 4. 인쇄 전용 테이블
   function renderPrintViews() {
-    // 4-1. 인쇄용 집단 성원 표
     const pGroup = document.getElementById("printGroupTable");
     if (pGroup) {
       let maxMembers = 0;
       appData.groups.forEach(g => { if (g.members.length > maxMembers) maxMembers = g.members.length; });
 
       let html = `<thead><tr><th style="width:5%;">No</th>`;
-      appData.groups.forEach(g => { html += `<th>${g.name}</th>`; });
+      appData.groups.forEach(g => { 
+        html += `<th>${g.name}<span class="print-clean-sub">(${g.cleanMonths})</span></th>`; 
+      });
       html += `</tr></thead><tbody>`;
 
       for (let i = 0; i < maxMembers; i++) {
@@ -712,7 +742,6 @@
       pGroup.innerHTML = html;
     }
 
-    // 4-2. 인쇄용 봉사 및 인도자 표
     const pServ = document.getElementById("printServiceTable");
     if (pServ) {
       const p = appData.servicePlan;
@@ -752,7 +781,6 @@
       pServ.innerHTML = html;
     }
 
-    // 4-3. 인쇄용 회중 임명 표
     const pDuty = document.getElementById("printDutyTable");
     if (pDuty) {
       let html = `<thead><tr><th colspan="8" class="bg-blue-header">회중 임명</th></tr></thead><tbody>`;
@@ -775,7 +803,7 @@
     }
   }
 
-  // --- 성원 추가 / 수정 모달 로직 ---
+  // --- 성원 추가/수정 모달 ---
   function openAddMemberModal(groupIdx) {
     document.getElementById("modalGroupIdx").value = groupIdx;
     document.getElementById("modalMemberId").value = "";
@@ -816,13 +844,11 @@
     if (!name) return alert("이름을 입력해주세요.");
 
     if (mId) {
-      // 수정
       const idx = appData.groups[gIdx].members.findIndex(m => m.id === mId);
       if (idx !== -1) {
         appData.groups[gIdx].members[idx] = { id: mId, name, role, isPioneer };
       }
     } else {
-      // 추가
       appData.groups[gIdx].members.push({
         id: 'm_' + Date.now(),
         name,
@@ -845,7 +871,7 @@
     }
   }
 
-  // --- 봉사 계획표 인라인 수정 로직 ---
+  // --- 봉사 계획표 수정 ---
   async function editLocation() {
     const newLoc = prompt("새로운 모임 장소를 입력하세요:", appData.servicePlan.location);
     if (newLoc !== null) {
@@ -882,7 +908,7 @@
     }
   }
 
-  // --- 회중 임명표 모달 편집 로직 ---
+  // --- 회중 임명표 모달 편집 ---
   function openDutyEditModal() {
     const box = document.getElementById("dutyModalInputs");
     box.innerHTML = "";
@@ -931,7 +957,6 @@
     closeModal("dutyModal");
   }
 
-  // --- 백업 & 기본값 복원 ---
   function exportDataJSON() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
     const dlAnchor = document.createElement("a");
@@ -940,8 +965,8 @@
     dlAnchor.click();
   }
 
-  async function resetToInitialImageDefaults() {
-    if (confirm("첨부해주신 이미지의 초기 기본 데이터로 복원하시겠습니까?")) {
+  async function resetToInitialDefaults() {
+    if (confirm("새로운 집단명(사랑~온화)과 청소월 기본 데이터로 복원하시겠습니까?")) {
       appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
       await syncToCloud();
       alert("기본 데이터로 복원되었습니다.");
