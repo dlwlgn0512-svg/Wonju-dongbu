@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>회중 집단 및 봉사 계획 관리 시스템</title>
   
+  <!-- 파이어베이스 라이브러리 -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+  <!-- 고화질 이미지 캡처 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -137,33 +139,37 @@
     input, select { padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.86rem; outline: none; width: 100%; }
 
     /* ========================================================
-       ★ [A4 가로 인쇄 최적화]: 공백 없이 꽉 찬 풀-블리드 서식
+       ★ [A4 가로 1장 인쇄 최적화 - 중복 제거 및 1장 완전 수납] ★
        ======================================================== */
     .print-only { display: none; }
 
     @media print {
       @page { 
         size: A4 landscape; 
-        margin: 5mm 6mm; /* 상하좌우를 최대로 활용 */
+        margin: 4mm 6mm; /* 상하 4mm로 여유 높이 확보 */
       }
       html, body { 
         background: #fff !important; 
         padding: 0 !important; 
         margin: 0 !important; 
         color: #000 !important;
-        font-size: 8.2pt !important; /* 7.2pt -> 8.2pt로 키워 가독성 및 채움 극대화 */
-        line-height: 1.25 !important;
+        font-size: 7.6pt !important;
+        line-height: 1.15 !important;
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important;
       }
 
-      header, .no-print, button, .group-grid, .modal-backdrop { 
+      header, .no-print, button, .group-grid, .modal-backdrop, .section-title, .card { 
         display: none !important; 
       }
 
-      .print-only { display: block !important; width: 100% !important; }
-      .container { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
-      .card { border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+      .print-only { 
+        display: block !important; 
+        width: 100% !important; 
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .container { max-width: 100% !important; margin: 0 !important; width: 100% !important; padding: 0 !important; }
 
       table { 
         border-collapse: collapse !important; 
@@ -171,30 +177,30 @@
         width: 100% !important; 
         table-layout: fixed !important;
         page-break-inside: avoid !important;
-        margin-bottom: 7px !important; /* 표 사이 간격을 적당히 주어 아래쪽 휑한 공백 해소 */
+        margin-bottom: 3.5px !important; /* 표 간격을 타이트하게 3.5px로 유지 */
       }
       th, td { 
-        border: 1px solid #444 !important; 
-        padding: 4.0px 4px !important; /* 기존 2.2px -> 4.0px로 넉넉하게 확장 */
+        border: 1px solid #333 !important; 
+        padding: 3.0px 3px !important; /* 상하 3px 패딩으로 1장 안에 온전히 수납 */
         color: #000 !important; 
-        font-size: 8.2pt !important;
+        font-size: 7.6pt !important;
       }
       .print-header-banner {
         text-align: center;
-        font-size: 1.35rem;
+        font-size: 1.22rem;
         font-weight: 800;
-        margin-bottom: 4px;
+        margin: 0 0 2px 0;
         letter-spacing: 2px;
       }
       .pioneer-note {
         text-align: right;
-        font-size: 7.6pt;
+        font-size: 7.2pt;
         font-weight: bold;
-        margin-bottom: 4px;
+        margin: 0 0 3px 0;
       }
       .print-clean-sub {
         display: block;
-        font-size: 7.2pt;
+        font-size: 6.8pt;
         font-weight: normal;
         color: #1e3a8a;
         margin-top: 1px;
@@ -221,14 +227,14 @@
     </div>
   </header>
 
-  <!-- 1. 집단 성원 명단 -->
+  <!-- 1. 집단 성원 명단 (화면 전용) -->
   <div class="section-title no-print">
     <span>👥 집단 성원 명단 (기울임: 정규 파이오니아)</span>
   </div>
 
   <div class="group-grid no-print" id="groupGridContainer"></div>
 
-  <!-- 2. 주간 봉사 및 인도자 계획표 -->
+  <!-- 2. 주간 봉사 및 인도자 계획표 (화면 전용) -->
   <div class="section-title no-print">
     <span>🚗 봉사 및 인도자 계획표</span>
     <span style="font-size:0.75rem; color:#15803d; font-weight:600;">※ 전시대 봉사는 연두색으로 자동 하이라이트됩니다.</span>
@@ -255,7 +261,7 @@
     </table>
   </div>
 
-  <!-- 3. 회중 임명표 -->
+  <!-- 3. 회중 임명표 (화면 전용) -->
   <div class="section-title no-print">
     <span>🏛️ 회중 임명표</span>
     <button type="button" class="btn-outline" style="padding:3px 8px; font-size:0.75rem;" onclick="openDutyEditModal()">✏️ 임명자 일괄 수정</button>
@@ -270,21 +276,26 @@
     </table>
   </div>
 
-  <!-- 인쇄 & 고화질 이미지 캡처 전용 템플릿 (A4 꽉 차게 피팅) -->
-  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; background: #ffffff; padding: 22px;">
-    <div style="text-align: center; font-size: 1.45rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 6px; color: #000;">회중 집단 및 주간 봉사 계획표</div>
-    <div style="text-align: right; font-size: 0.85rem; font-weight: bold; margin-bottom: 6px; color: #333;">기울임: 정규 파이오니아</div>
-    
-    <table id="printGroupTable" style="margin-bottom: 8px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
-    <table id="printServiceTable" style="margin-bottom: 8px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
-    <table id="printDutyTable" style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
-  </div>
-
-  <!-- 브라우저 인쇄 전용 영역 -->
+  <!-- ========================================================
+       ★ 인쇄 전용 영역: 제목 단 1회 표기 & A4 1장 피팅 ★
+       ======================================================== -->
   <div class="print-only">
     <div class="print-header-banner">회중 집단 및 주간 봉사 계획표</div>
     <div class="pioneer-note">기울임: 정규 파이오니아</div>
-    <div id="printContainerDirect"></div>
+    
+    <table id="printGroupTable"></table>
+    <table id="printServiceTable"></table>
+    <table id="printDutyTable"></table>
+  </div>
+
+  <!-- 이미지 파일 캡처 전용 오프스크린 컨테이너 (화면/인쇄에 절대 간섭 없음) -->
+  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; background: #ffffff; padding: 20px;">
+    <div style="text-align: center; font-size: 1.45rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px; color: #000;">회중 집단 및 주간 봉사 계획표</div>
+    <div style="text-align: right; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; color: #333;">기울임: 정규 파이오니아</div>
+    
+    <table id="imgGroupTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+    <table id="imgServiceTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+    <table id="imgDutyTable" style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
   </div>
 </div>
 
@@ -383,6 +394,7 @@
 </div>
 
 <script>
+  // Firebase 설정
   const firebaseConfig = {
     apiKey: "AIzaSyCdZlSMTeiZvmN_qn4Yqva06NE_NR7QB7I",
     authDomain: "love-d0dcf.firebaseapp.com",
@@ -536,7 +548,7 @@
         wed: { leaders: ["강덕수", "이영길"], time: "오전 9:40", type: "호별", isCart: [false, false] },
         thu: { leaders: ["오세길", "", "박승일", "이한직"], time: "오전 10:40 / 오후 15:40", type: "오전:전시대 / 오후: 호별", isCart: [true, false, false, false] },
         fri: { leaders: ["박철민", "엄태현", "이영길", "오세길"], time: "오전 9:40 / 오후 17:40", type: "오전: 호별 / 오후: 전시대", isCart: [false, false, true, true] },
-        sat: { leaders: ["오성진", "김지웅"], time: "오전 9:40", type: "호별", isCart: [false, false] },
+        sat: { leaders: ["오성진", "도찬구"], time: "오전 9:40", type: "호별", isCart: [false, false] },
         sun: { leaders: ["이상목", "박철민", "이순근"], time: "오전 7:00 / 오후 13:40", type: "오전:전시대 (1주: 집단봉사 / 2~5주: 호별)", isCart: [true, true, false] }
       }
     },
@@ -544,8 +556,8 @@
       { role: "조정자", names: ["이영길"], role2: "서 기", names2: ["이상목"], role3: "봉사감독자", names3: ["박철민"], role4: "파수대사회자", names4: ["강덕수", "박승일"] },
       { role: "생봉감", names: ["오세길"], role2: "보조조언자", names2: ["강덕수"], role3: "공강조정자", names3: ["이영길"], role4: "중립돕는형제", names4: ["이시형", "이상목"] },
       { role: "회 계", names: ["엄태현", "오성진"], role2: "청소조정자", names2: ["이시형"], role3: "연 단", names3: ["오성진", ".이수현"], role4: "주 차", names4: ["이영길"] },
-      { role: "구 역", names: ["원보빈"], role2: "서 적", names2: ["오성진"], role3: "줌 안내인", names3: ["이준형"], role4: "회관영선", names4: ["박승일", "김영호"] },
-      { role: "안 내", names: ["이영길", "이상목"], role2: "운영위원", names2: ["이상목"], role3: "미디어", names3: ["이순근", "엄태현"], role4: "미디어보조", names4: ["이준형", "백승혁"] }
+      { role: "구 역", names: ["원보빈", "도찬구"], role2: "서 적", names2: ["오성진"], role3: "줌 안내인", names3: ["이준형"], role4: "회관영선", names4: ["박승일", "김영호"] },
+      { role: "안 내", names: ["이영길", "이상목"], role2: "운영위원", names2: ["이상목"], role3: "미디어", names3: ["이순근", "엄태현", "강덕수"], role4: "미디어보조", names4: ["이준형", "백승혁"] }
     ]
   };
 
@@ -715,107 +727,110 @@
     });
   }
 
+  // ★ 인쇄 및 캡처 전용 테이블 빌더 (제목 중복 절대 방지)
   function renderPrintViews() {
-    const pGroup = document.getElementById("printGroupTable");
-    if (pGroup) {
-      let maxMembers = 0;
-      appData.groups.forEach(g => { if (g.members.length > maxMembers) maxMembers = g.members.length; });
+    // 1. 집단 성원 표 빌드
+    let maxMembers = 0;
+    appData.groups.forEach(g => { if (g.members.length > maxMembers) maxMembers = g.members.length; });
 
-      let html = `<thead><tr><th style="width:5%;">No</th>`;
-      appData.groups.forEach(g => { 
-        html += `<th>${g.name}<span class="print-clean-sub">(${g.cleanMonths})</span></th>`; 
+    let groupHTML = `<thead><tr><th style="width:5%;">No</th>`;
+    appData.groups.forEach(g => { 
+      groupHTML += `<th>${g.name}<span class="print-clean-sub">(${g.cleanMonths})</span></th>`; 
+    });
+    groupHTML += `</tr></thead><tbody>`;
+
+    for (let i = 0; i < maxMembers; i++) {
+      groupHTML += `<tr><td class="center" style="background:#f8fafc; font-weight:bold;">${i + 1}</td>`;
+      appData.groups.forEach(g => {
+        const m = g.members[i];
+        if (m) {
+          let rolePrefix = "";
+          if (m.role === "감독자") rolePrefix = "<b style='color:#1e40af;'>[감] </b>";
+          else if (m.role === "보조자") rolePrefix = "<b style='color:#166534;'>[보] </b>";
+          else if (m.role === "자녀") rolePrefix = "<span style='color:#666;'>[자] </span>";
+          else if (m.role === "관심자") rolePrefix = "<span style='color:#b45309;'>[관] </span>";
+
+          groupHTML += `<td class="center ${m.isPioneer ? 'pioneer' : ''}">${rolePrefix}${m.name}</td>`;
+        } else {
+          groupHTML += `<td></td>`;
+        }
       });
-      html += `</tr></thead><tbody>`;
+      groupHTML += `</tr>`;
+    }
+    groupHTML += `</tbody>`;
 
-      for (let i = 0; i < maxMembers; i++) {
-        html += `<tr><td class="center" style="background:#f8fafc; font-weight:bold;">${i + 1}</td>`;
-        appData.groups.forEach(g => {
-          const m = g.members[i];
-          if (m) {
-            let rolePrefix = "";
-            if (m.role === "감독자") rolePrefix = "<b style='color:#1e40af;'>[감] </b>";
-            else if (m.role === "보조자") rolePrefix = "<b style='color:#166534;'>[보] </b>";
-            else if (m.role === "자녀") rolePrefix = "<span style='color:#666;'>[자] </span>";
-            else if (m.role === "관심자") rolePrefix = "<span style='color:#b45309;'>[관] </span>";
+    // 2. 봉사 및 인도자 표 빌드
+    const p = appData.servicePlan;
+    const daysKey = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
-            html += `<td class="center ${m.isPioneer ? 'pioneer' : ''}">${rolePrefix}${m.name}</td>`;
-          } else {
-            html += `<td></td>`;
-          }
-        });
-        html += `</tr>`;
-      }
-      html += `</tbody>`;
-      pGroup.innerHTML = html;
+    let serviceHTML = `
+      <thead>
+        <tr><th colspan="8" class="bg-blue-header">봉사 및 인도자</th></tr>
+        <tr style="background:#f1f5f9;">
+          <th style="width:12%;">요 일</th>
+          <th>월요일</th><th>화요일</th><th>수요일</th><th>목요일</th><th>금요일</th><th>토요일</th><th>일요일</th>
+        </tr>
+      </thead>
+      <tbody>
+    `;
+
+    for (let r = 0; r < 4; r++) {
+      serviceHTML += `<tr>`;
+      if (r === 0) serviceHTML += `<td rowspan="4" class="center font-bold" style="background:#f8fafc;">인도자<br><span style="font-size:6.2pt; color:#15803d;">(전시대-녹색)</span></td>`;
+      daysKey.forEach(d => {
+        const name = (p.days[d].leaders && p.days[d].leaders[r]) || "";
+        const isCart = (p.days[d].isCart && p.days[d].isCart[r]) || false;
+        serviceHTML += `<td class="center ${isCart ? 'bg-green-highlight' : ''}">${name}</td>`;
+      });
+      serviceHTML += `</tr>`;
     }
 
-    const pServ = document.getElementById("printServiceTable");
-    if (pServ) {
-      const p = appData.servicePlan;
-      const daysKey = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    serviceHTML += `<tr><td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td><td colspan="7" class="center font-bold" style="color:#0284c7;">${p.location}</td></tr>`;
+    
+    serviceHTML += `<tr><td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
+    daysKey.forEach(d => { serviceHTML += `<td class="center" style="font-size:7.0pt; font-weight:bold;">${p.days[d].time}</td>`; });
+    serviceHTML += `</tr>`;
 
-      let html = `
-        <thead>
-          <tr><th colspan="8" class="bg-blue-header">봉사 및 인도자</th></tr>
-          <tr style="background:#f1f5f9;">
-            <th style="width:12%;">요 일</th>
-            <th>월요일</th><th>화요일</th><th>수요일</th><th>목요일</th><th>금요일</th><th>토요일</th><th>일요일</th>
-          </tr>
-        </thead>
-        <tbody>
+    serviceHTML += `<tr><td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
+    daysKey.forEach(d => { serviceHTML += `<td class="center" style="font-size:6.8pt;">${p.days[d].type}</td>`; });
+    serviceHTML += `</tr></tbody>`;
+
+    // 3. 회중 임명 표 빌드
+    let dutyHTML = `<thead><tr><th colspan="8" class="bg-blue-header">회중 임명</th></tr></thead><tbody>`;
+    appData.duties.forEach(row => {
+      dutyHTML += `
+        <tr>
+          <td class="bg-green-light center" style="width:11%;">${row.role}</td>
+          <td class="center font-bold" style="width:14%;">${row.names.join(", ")}</td>
+          <td class="bg-green-light center" style="width:11%;">${row.role2}</td>
+          <td class="center font-bold" style="width:14%;">${row.names2.join(", ")}</td>
+          <td class="bg-green-light center" style="width:11%;">${row.role3}</td>
+          <td class="center font-bold" style="width:14%;">${row.names3.join(", ")}</td>
+          <td class="bg-green-light center" style="width:11%;">${row.role4}</td>
+          <td class="center font-bold" style="width:14%;">${row.names4.join(", ")}</td>
+        </tr>
       `;
+    });
+    dutyHTML += `</tbody>`;
 
-      for (let r = 0; r < 4; r++) {
-        html += `<tr>`;
-        if (r === 0) html += `<td rowspan="4" class="center font-bold" style="background:#f8fafc;">인도자<br><span style="font-size:6.8pt; color:#15803d;">(전시대-녹색)</span></td>`;
-        daysKey.forEach(d => {
-          const name = (p.days[d].leaders && p.days[d].leaders[r]) || "";
-          const isCart = (p.days[d].isCart && p.days[d].isCart[r]) || false;
-          html += `<td class="center ${isCart ? 'bg-green-highlight' : ''}">${name}</td>`;
-        });
-        html += `</tr>`;
-      }
-
-      html += `<tr><td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td><td colspan="7" class="center font-bold" style="color:#0284c7;">${p.location}</td></tr>`;
-      
-      html += `<tr><td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
-      daysKey.forEach(d => { html += `<td class="center" style="font-size:7.4pt; font-weight:bold;">${p.days[d].time}</td>`; });
-      html += `</tr>`;
-
-      html += `<tr><td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
-      daysKey.forEach(d => { html += `<td class="center" style="font-size:7.2pt;">${p.days[d].type}</td>`; });
-      html += `</tr></tbody>`;
-      pServ.innerHTML = html;
-    }
-
+    // 인쇄용 DOM에 각각 단 1회 삽입
+    const pGroup = document.getElementById("printGroupTable");
+    const pServ = document.getElementById("printServiceTable");
     const pDuty = document.getElementById("printDutyTable");
-    if (pDuty) {
-      let html = `<thead><tr><th colspan="8" class="bg-blue-header">회중 임명</th></tr></thead><tbody>`;
-      appData.duties.forEach(row => {
-        html += `
-          <tr>
-            <td class="bg-green-light center" style="width:11%;">${row.role}</td>
-            <td class="center font-bold" style="width:14%;">${row.names.join(", ")}</td>
-            <td class="bg-green-light center" style="width:11%;">${row.role2}</td>
-            <td class="center font-bold" style="width:14%;">${row.names2.join(", ")}</td>
-            <td class="bg-green-light center" style="width:11%;">${row.role3}</td>
-            <td class="center font-bold" style="width:14%;">${row.names3.join(", ")}</td>
-            <td class="bg-green-light center" style="width:11%;">${row.role4}</td>
-            <td class="center font-bold" style="width:14%;">${row.names4.join(", ")}</td>
-          </tr>
-        `;
-      });
-      html += `</tbody>`;
-      pDuty.innerHTML = html;
-    }
+    if (pGroup) pGroup.innerHTML = groupHTML;
+    if (pServ) pServ.innerHTML = serviceHTML;
+    if (pDuty) pDuty.innerHTML = dutyHTML;
 
-    const printDirect = document.getElementById("printContainerDirect");
-    const template = document.getElementById("imageCaptureTemplate");
-    if (printDirect && template) {
-      printDirect.innerHTML = template.innerHTML;
-    }
+    // 캡처용 DOM에도 각각 동기화
+    const iGroup = document.getElementById("imgGroupTable");
+    const iServ = document.getElementById("imgServiceTable");
+    const iDuty = document.getElementById("imgDutyTable");
+    if (iGroup) iGroup.innerHTML = groupHTML;
+    if (iServ) iServ.innerHTML = serviceHTML;
+    if (iDuty) iDuty.innerHTML = dutyHTML;
   }
 
+  // 사진(이미지) 저장
   function generatePlanImage() {
     const template = document.getElementById("imageCaptureTemplate");
     if (!template) return;
