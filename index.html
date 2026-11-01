@@ -139,22 +139,22 @@
     input, select { padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.86rem; outline: none; width: 100%; }
 
     /* ========================================================
-       ★ [A4 가로 1장 인쇄 최적화 - 중복 제거 및 1장 완전 수납] ★
+       ★ [인쇄 최적화]: 집단 성원표 칸 확장 & 글씨 확대 (하단 공백 제거)
        ======================================================== */
     .print-only { display: none; }
 
     @media print {
       @page { 
         size: A4 landscape; 
-        margin: 4mm 6mm; /* 상하 4mm로 여유 높이 확보 */
+        margin: 5mm 6mm; /* A4 가로 전체 활용 */
       }
       html, body { 
         background: #fff !important; 
         padding: 0 !important; 
         margin: 0 !important; 
         color: #000 !important;
-        font-size: 7.6pt !important;
-        line-height: 1.15 !important;
+        font-size: 8.4pt !important;
+        line-height: 1.2 !important;
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important;
       }
@@ -177,30 +177,50 @@
         width: 100% !important; 
         table-layout: fixed !important;
         page-break-inside: avoid !important;
-        margin-bottom: 3.5px !important; /* 표 간격을 타이트하게 3.5px로 유지 */
+        margin-bottom: 5px !important;
       }
-      th, td { 
-        border: 1px solid #333 !important; 
-        padding: 3.0px 3px !important; /* 상하 3px 패딩으로 1장 안에 온전히 수납 */
-        color: #000 !important; 
-        font-size: 7.6pt !important;
+
+      /* ★ 1. 집단 성원 명단 표: 패딩과 글씨를 시원하게 키움 */
+      #printGroupTable th {
+        font-size: 8.8pt !important;
+        padding: 4.5px 3px !important;
       }
+      #printGroupTable td {
+        border: 1px solid #444 !important;
+        padding: 4.2px 3px !important; /* 상하 높이 대폭 확장 (기존 3px -> 4.2px) */
+        font-size: 8.6pt !important; /* 글자 크기 확대 (기존 7.6pt -> 8.6pt) */
+      }
+
+      /* ★ 2. 봉사 및 인도자 표 */
+      #printServiceTable th, #printServiceTable td {
+        border: 1px solid #444 !important;
+        padding: 3.5px 3px !important;
+        font-size: 8.0pt !important;
+      }
+
+      /* ★ 3. 회중 임명 표 */
+      #printDutyTable th, #printDutyTable td {
+        border: 1px solid #444 !important;
+        padding: 4.0px 3px !important;
+        font-size: 8.2pt !important;
+      }
+
       .print-header-banner {
         text-align: center;
-        font-size: 1.22rem;
+        font-size: 1.35rem;
         font-weight: 800;
-        margin: 0 0 2px 0;
+        margin: 0 0 3px 0;
         letter-spacing: 2px;
       }
       .pioneer-note {
         text-align: right;
-        font-size: 7.2pt;
+        font-size: 7.6pt;
         font-weight: bold;
         margin: 0 0 3px 0;
       }
       .print-clean-sub {
         display: block;
-        font-size: 6.8pt;
+        font-size: 7.2pt;
         font-weight: normal;
         color: #1e3a8a;
         margin-top: 1px;
@@ -276,9 +296,7 @@
     </table>
   </div>
 
-  <!-- ========================================================
-       ★ 인쇄 전용 영역: 제목 단 1회 표기 & A4 1장 피팅 ★
-       ======================================================== -->
+  <!-- 인쇄 전용 영역 -->
   <div class="print-only">
     <div class="print-header-banner">회중 집단 및 주간 봉사 계획표</div>
     <div class="pioneer-note">기울임: 정규 파이오니아</div>
@@ -288,13 +306,13 @@
     <table id="printDutyTable"></table>
   </div>
 
-  <!-- 이미지 파일 캡처 전용 오프스크린 컨테이너 (화면/인쇄에 절대 간섭 없음) -->
-  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; background: #ffffff; padding: 20px;">
+  <!-- 이미지 파일 캡처 전용 오프스크린 컨테이너 -->
+  <div id="imageCaptureTemplate" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; background: #ffffff; padding: 22px;">
     <div style="text-align: center; font-size: 1.45rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px; color: #000;">회중 집단 및 주간 봉사 계획표</div>
     <div style="text-align: right; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; color: #333;">기울임: 정규 파이오니아</div>
     
-    <table id="imgGroupTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
-    <table id="imgServiceTable" style="margin-bottom: 6px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+    <table id="imgGroupTable" style="margin-bottom: 8px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
+    <table id="imgServiceTable" style="margin-bottom: 8px; width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
     <table id="imgDutyTable" style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;"></table>
   </div>
 </div>
@@ -394,7 +412,6 @@
 </div>
 
 <script>
-  // Firebase 설정
   const firebaseConfig = {
     apiKey: "AIzaSyCdZlSMTeiZvmN_qn4Yqva06NE_NR7QB7I",
     authDomain: "love-d0dcf.firebaseapp.com",
@@ -727,7 +744,6 @@
     });
   }
 
-  // ★ 인쇄 및 캡처 전용 테이블 빌더 (제목 중복 절대 방지)
   function renderPrintViews() {
     // 1. 집단 성원 표 빌드
     let maxMembers = 0;
@@ -788,11 +804,11 @@
     serviceHTML += `<tr><td class="center font-bold" style="background:#f8fafc; color:#0284c7;">모임장소</td><td colspan="7" class="center font-bold" style="color:#0284c7;">${p.location}</td></tr>`;
     
     serviceHTML += `<tr><td class="center font-bold" style="background:#f8fafc;">모임시간</td>`;
-    daysKey.forEach(d => { serviceHTML += `<td class="center" style="font-size:7.0pt; font-weight:bold;">${p.days[d].time}</td>`; });
+    daysKey.forEach(d => { serviceHTML += `<td class="center" style="font-size:7.2pt; font-weight:bold;">${p.days[d].time}</td>`; });
     serviceHTML += `</tr>`;
 
     serviceHTML += `<tr><td class="center font-bold" style="background:#f8fafc;">봉사 유형</td>`;
-    daysKey.forEach(d => { serviceHTML += `<td class="center" style="font-size:6.8pt;">${p.days[d].type}</td>`; });
+    daysKey.forEach(d => { serviceHTML += `<td class="center" style="font-size:7.0pt;">${p.days[d].type}</td>`; });
     serviceHTML += `</tr></tbody>`;
 
     // 3. 회중 임명 표 빌드
@@ -813,7 +829,7 @@
     });
     dutyHTML += `</tbody>`;
 
-    // 인쇄용 DOM에 각각 단 1회 삽입
+    // 인쇄용 DOM 삽입
     const pGroup = document.getElementById("printGroupTable");
     const pServ = document.getElementById("printServiceTable");
     const pDuty = document.getElementById("printDutyTable");
@@ -821,7 +837,7 @@
     if (pServ) pServ.innerHTML = serviceHTML;
     if (pDuty) pDuty.innerHTML = dutyHTML;
 
-    // 캡처용 DOM에도 각각 동기화
+    // 캡처용 DOM 삽입
     const iGroup = document.getElementById("imgGroupTable");
     const iServ = document.getElementById("imgServiceTable");
     const iDuty = document.getElementById("imgDutyTable");
@@ -830,7 +846,6 @@
     if (iDuty) iDuty.innerHTML = dutyHTML;
   }
 
-  // 사진(이미지) 저장
   function generatePlanImage() {
     const template = document.getElementById("imageCaptureTemplate");
     if (!template) return;
